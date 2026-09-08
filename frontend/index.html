@@ -1,0 +1,740 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>KRIYA | Sovereign Industrial AI Workbench</title>
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- React 18 & ReactDOM -->
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <!-- Babel for in-browser JSX parsing -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <!-- Marked.js for Markdown rendering -->
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brandDark: '#0a0a0f',
+            panelDark: '#121218',
+            sidebarDark: '#0e0e13',
+            borderDark: '#232330',
+            brandGreen: '#10b981',
+            brandCyan: '#06b6d4',
+            brandPurple: '#8b5cf6',
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    body {
+      background-color: #0a0a0f;
+      color: #e4e4e7;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    }
+    .custom-scroll::-webkit-scrollbar {
+      width: 5px;
+    }
+    .custom-scroll::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    .custom-scroll::-webkit-scrollbar-thumb {
+      background: #232330;
+      border-radius: 3px;
+    }
+    .cursor-blink {
+      display: inline-block;
+      width: 8px;
+      height: 16px;
+      background-color: #06b6d4;
+      animation: blink 1s infinite;
+      vertical-align: middle;
+      margin-left: 2px;
+    }
+    @keyframes blink {
+      0%, 49% { opacity: 1; }
+      50%, 100% { opacity: 0; }
+    }
+    .markdown-body p { margin-bottom: 0.5rem; line-height: 1.6; }
+    .markdown-body pre { background: #181820; padding: 0.75rem; border-radius: 0.5rem; overflow-x: auto; margin: 0.5rem 0; font-family: monospace; }
+    .markdown-body code { background: #1e1e28; padding: 0.15rem 0.35rem; border-radius: 0.25rem; font-family: monospace; font-size: 0.9em; }
+    .markdown-body ul { list-style: disc; margin-left: 1.25rem; margin-bottom: 0.5rem; }
+    .markdown-body ol { list-style: decimal; margin-left: 1.25rem; margin-bottom: 0.5rem; }
+  </style>
+</head>
+<body class="h-screen flex overflow-hidden">
+  <div id="root" class="h-full w-full flex"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect, useRef } = React;
+
+    const WELCOME_MESSAGE = {
+      role: 'assistant',
+      content: "👋 Hello! I am **KRIYA**, your sovereign AI assistant for confidential industrial work at **Mangalore Refinery and Petrochemicals Limited (MRPL)**.\n\nAll conversations are persisted locally in your on-premise PostgreSQL database (`kriya_db`). I can run tools like terminal execution and DuckDuckGo web search. How can I help you today?"
+    };
+
+    // Helper: Parse reasoning (<think>) and tool calls in exact CHRONOLOGICAL TIMELINE order
+    function parseMessageContent(rawContent) {
+      let content = rawContent || '';
+      const timeline = [];
+      let lastIndex = 0;
+
+      // Regex matching completed <think>...</think> OR <tool_call ...>...</tool_call><tool_result ...>...</tool_result>
+      const pattern = /(<think>[\s\S]*?<\/think>|<tool_call name="([^"]*)" args='([^']*)'>[\s\S]*?<\/tool_call>\s*<tool_result name="[^"]*">([\s\S]*?)<\/tool_result>)/g;
+
+      let match;
+      while ((match = pattern.exec(content)) !== null) {
+        const fullMatch = match[0];
+        if (fullMatch.startsWith('<think>')) {
+          const text = fullMatch.replace('<think>', '').replace('</think>', '').trim();
+          if (text) {
+            timeline.push({ type: 'thought', text, isComplete: true });
+          }
+        } else if (fullMatch.includes('<tool_call')) {
+          const name = match[2];
+          let cleanArgs = match[3];
+          try {
+            const p = JSON.parse(match[3]);
+            cleanArgs = p.command || p.query || match[3];
+          } catch(e) {}
+          const result = match[4].trim();
+          timeline.push({ type: 'tool', name, args: cleanArgs, result, isComplete: true });
+        }
+        lastIndex = pattern.lastIndex;
+      }
+
+      const remainder = content.substring(lastIndex);
+      let isReasoningActive = false;
+      let cleanAnswer = '';
+
+      if (remainder.includes('<think>')) {
+        const thinkText = remainder.split('<think>')[1].trim();
+        timeline.push({ type: 'thought', text: thinkText, isComplete: false });
+        isReasoningActive = true;
+      } else if (remainder.includes('<tool_call')) {
+        const tcMatch = /<tool_call name="([^"]*)" args='([^']*)'>/g.exec(remainder);
+        if (tcMatch) {
+          let cleanArgs = tcMatch[2];
+          try {
+            const p = JSON.parse(tcMatch[2]);
+            cleanArgs = p.command || p.query || tcMatch[2];
+          } catch(e) {}
+          timeline.push({ type: 'tool', name: tcMatch[1], args: cleanArgs, result: '', isComplete: false });
+        }
+        isReasoningActive = true;
+      } else {
+        cleanAnswer = remainder.trim();
+      }
+
+      const hasReasoningContent = timeline.length > 0;
+      const toolCount = timeline.filter(t => t.type === 'tool').length;
+      const thoughtCount = timeline.filter(t => t.type === 'thought').length;
+
+      return {
+        timeline,
+        cleanAnswer,
+        hasReasoningContent,
+        isReasoningActive,
+        toolCount,
+        thoughtCount
+      };
+    }
+
+    // Component: Renders Assistant Message with Chronological Reasoning & In-Place Tool Dropdowns
+    function AssistantMessageItem({ content, isGenerating }) {
+      const parsed = parseMessageContent(content);
+      const [isReasoningOpen, setIsReasoningOpen] = useState(parsed.isReasoningActive);
+      const [openTools, setOpenTools] = useState({});
+      const prevActiveRef = useRef(parsed.isReasoningActive);
+
+      useEffect(() => {
+        if (parsed.isReasoningActive) {
+          setIsReasoningOpen(true);
+        } else if (prevActiveRef.current && !parsed.isReasoningActive && parsed.hasReasoningContent) {
+          setIsReasoningOpen(false); // Auto-close upon completion
+        }
+        prevActiveRef.current = parsed.isReasoningActive;
+      }, [parsed.isReasoningActive, parsed.hasReasoningContent]);
+
+      const toggleTool = (idx) => {
+        setOpenTools(prev => ({ ...prev, [idx]: !prev[idx] }));
+      };
+
+      return (
+        <div class="space-y-3">
+          {/* Unified Reasoning & Execution Dropdown */}
+          {parsed.hasReasoningContent && (
+            <div class="rounded-lg border border-purple-800/40 bg-purple-950/20 overflow-hidden text-xs">
+              <button
+                onClick={() => setIsReasoningOpen(!isReasoningOpen)}
+                class="w-full px-3 py-2.5 flex items-center justify-between bg-purple-950/40 hover:bg-purple-900/30 text-purple-300 font-medium transition"
+              >
+                <div class="flex items-center space-x-2">
+                  <span class="text-purple-400">🧠</span>
+                  <span>
+                    {parsed.isReasoningActive
+                      ? "Reasoning & Executing Tools..."
+                      : `Reasoning & Execution (${parsed.thoughtCount} thought${parsed.thoughtCount > 1 ? 's' : ''}, ${parsed.toolCount} tool call${parsed.toolCount > 1 ? 's' : ''}) - Completed`}
+                  </span>
+                  {parsed.isReasoningActive && (
+                    <span class="w-2 h-2 rounded-full bg-purple-400 animate-ping"></span>
+                  )}
+                </div>
+                <span class="text-zinc-400 text-[11px] font-normal">
+                  {isReasoningOpen ? "Hide Steps ▲" : "View Steps ▼"}
+                </span>
+              </button>
+
+              {/* Timeline Items in Exact Chronological Order */}
+              {isReasoningOpen && (
+                <div class="p-3 border-t border-purple-900/40 bg-purple-950/10 space-y-2.5">
+                  {parsed.timeline.map((item, idx) => {
+                    if (item.type === 'thought') {
+                      return (
+                        <div key={idx} class="text-zinc-300 font-mono text-[11px] whitespace-pre-wrap leading-relaxed bg-black/35 p-2.5 rounded border border-purple-900/40">
+                          <div class="text-[10px] text-purple-400 font-semibold mb-1 flex items-center justify-between">
+                            <span>💭 {item.isComplete ? "Thought Process:" : "Thinking..."}</span>
+                            {!item.isComplete && <span class="text-[10px] text-purple-400 animate-pulse">in progress</span>}
+                          </div>
+                          {item.text}
+                        </div>
+                      );
+                    } else if (item.type === 'tool') {
+                      const isToolOpen = openTools[idx] !== false;
+                      return (
+                        <div key={idx} class="rounded border border-cyan-800/50 bg-cyan-950/30 overflow-hidden text-xs">
+                          <div
+                            onClick={() => toggleTool(idx)}
+                            class="px-2.5 py-1.5 flex items-center justify-between bg-cyan-950/60 cursor-pointer hover:bg-cyan-900/40 transition text-cyan-300 font-mono text-[11px]"
+                          >
+                            <div class="flex items-center space-x-2 truncate">
+                              <span class="text-brandCyan font-bold">⚙️ Tool: {item.name}</span>
+                              <span class="text-zinc-400 truncate max-w-xs text-[10px]">({item.args})</span>
+                            </div>
+                            <span class="text-zinc-400 text-[10px] ml-2">{isToolOpen ? "Hide ▲" : "Output ▼"}</span>
+                          </div>
+
+                          {isToolOpen && (
+                            <div class="p-2.5 bg-black/60 border-t border-cyan-900/40 font-mono text-[11px] space-y-1.5">
+                              <div class="text-zinc-400">
+                                <span class="text-cyan-400">Input:</span> {item.args}
+                              </div>
+                              {item.result ? (
+                                <div class="p-2 bg-zinc-950 border border-zinc-800 rounded text-emerald-400 max-h-48 overflow-y-auto whitespace-pre-wrap">
+                                  {item.result}
+                                </div>
+                              ) : (
+                                <div class="text-xs text-cyan-400 animate-pulse">Executing tool locally...</div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    }
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Final Clean Answer Markdown */}
+          {parsed.cleanAnswer && (
+            <div 
+              class="markdown-body leading-relaxed"
+              dangerouslySetInnerHTML={{ __html: marked.parse(parsed.cleanAnswer) }}
+            />
+          )}
+
+          {/* Loading Indicators */}
+          {isGenerating && !parsed.cleanAnswer && (
+            <div class="text-xs text-zinc-400 flex items-center space-x-2 py-1">
+              <span class="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-ping"></span>
+              <span>{parsed.isReasoningActive ? "Reasoning & executing tools..." : "Generating answer..."}</span>
+            </div>
+          )}
+          {isGenerating && parsed.cleanAnswer && <span class="cursor-blink"></span>}
+        </div>
+      );
+    }
+
+    function App() {
+      const defaultBackend = window.location.port === '5000'
+        ? window.location.origin
+        : `http://${window.location.hostname || 'localhost'}:5000`;
+      const [backendUrl, setBackendUrl] = useState(defaultBackend);
+
+      const [conversations, setConversations] = useState([]);
+      const [activeConvId, setActiveConvId] = useState(null);
+      const [messages, setMessages] = useState([WELCOME_MESSAGE]);
+      const [input, setInput] = useState('');
+      const [isGenerating, setIsGenerating] = useState(false);
+      const [selectedModel, setSelectedModel] = useState('default');
+      const [thinkingMode, setThinkingMode] = useState(true);
+      const messagesEndRef = useRef(null);
+
+      const scrollToBottom = () => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      };
+
+      useEffect(() => {
+        scrollToBottom();
+      }, [messages, isGenerating]);
+
+      // 1. Initial Load: Fetch conversations from PostgreSQL
+      useEffect(() => {
+        loadConversations();
+      }, [backendUrl]);
+
+      const loadConversations = async () => {
+        try {
+          const res = await fetch(`${backendUrl}/api/conversations`);
+          if (res.ok) {
+            const list = await res.json();
+            setConversations(list);
+            if (list.length > 0 && !activeConvId) {
+              // Select the latest conversation
+              selectConversation(list[0].id);
+            } else if (list.length === 0 && !activeConvId) {
+              // Create initial conversation in DB
+              handleNewChat();
+            }
+          }
+        } catch (e) {
+          console.warn("Could not connect to database on init:", e);
+        }
+      };
+
+      // 2. Select a conversation to load from PostgreSQL
+      const selectConversation = async (convId) => {
+        if (isGenerating) return;
+        setActiveConvId(convId);
+        try {
+          const res = await fetch(`${backendUrl}/api/conversations/${convId}`);
+          if (res.ok) {
+            const data = await res.json();
+            if (data.messages && data.messages.length > 0) {
+              setMessages(data.messages);
+            } else {
+              setMessages([WELCOME_MESSAGE]);
+            }
+          }
+        } catch (e) {
+          console.error("Failed to load conversation from DB:", e);
+        }
+      };
+
+      // 3. Start a New Chat in PostgreSQL
+      const handleNewChat = async () => {
+        if (isGenerating) return;
+        try {
+          const res = await fetch(`${backendUrl}/api/conversations`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({})
+          });
+          if (res.ok) {
+            const newConv = await res.json();
+            setConversations(prev => [
+              { id: newConv.id, name: 'New Chat' },
+              ...prev.filter(c => c.id !== newConv.id)
+            ]);
+            setActiveConvId(newConv.id);
+            setMessages([WELCOME_MESSAGE]);
+          }
+        } catch (e) {
+          console.error("Failed to create new chat in DB:", e);
+        }
+      };
+
+      // 4. Delete a conversation from PostgreSQL
+      const handleDeleteConversation = async (e, convId) => {
+        e.stopPropagation();
+        if (isGenerating) return;
+        try {
+          await fetch(`${backendUrl}/api/conversations/${convId}`, { method: 'DELETE' });
+          const updated = conversations.filter(c => c.id !== convId);
+          setConversations(updated);
+          if (activeConvId === convId) {
+            if (updated.length > 0) {
+              selectConversation(updated[0].id);
+            } else {
+              handleNewChat();
+            }
+          }
+        } catch (e) {
+          console.error("Failed to delete conversation:", e);
+        }
+      };
+
+      // 5. Send message and handle streaming + DB persistence + Mini-Agent titling
+      const handleSend = async (customPrompt) => {
+        const textToSend = customPrompt || input;
+        if (!textToSend.trim() || isGenerating) return;
+
+        // Ensure we have an active conversation ID in DB
+        let currentConvId = activeConvId;
+        if (!currentConvId) {
+          const res = await fetch(`${backendUrl}/api/conversations`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({})
+          });
+          if (res.ok) {
+            const newConv = await res.json();
+            currentConvId = newConv.id;
+            setActiveConvId(currentConvId);
+          }
+        }
+
+        const userMsg = { role: 'user', content: textToSend };
+        setMessages(prev => [...prev, userMsg, { role: 'assistant', content: '' }]);
+        setInput('');
+        setIsGenerating(true);
+
+        let fullAssistantReply = '';
+
+        try {
+          const historyPayload = messages
+            .filter((_, idx) => idx > 0)
+            .map(m => ({ role: m.role, content: m.content }));
+
+          const requestPayload = {
+            user_message: textToSend,
+            history: historyPayload,
+            thinking: thinkingMode,
+            model: selectedModel,
+            temperature: 0.2
+          };
+
+          const streamUrl = `${backendUrl}/api/chat/stream`;
+          const response = await fetch(streamUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(requestPayload)
+          });
+
+          if (!response.ok) {
+            throw new Error(`Backend error status ${response.status}`);
+          }
+
+          const reader = response.body.getReader();
+          const decoder = new TextDecoder('utf-8');
+
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            const chunk = decoder.decode(value, { stream: true });
+            fullAssistantReply += chunk;
+            
+            setMessages(prev => {
+              const updated = [...prev];
+              const lastIdx = updated.length - 1;
+              updated[lastIdx] = {
+                ...updated[lastIdx],
+                content: updated[lastIdx].content + chunk
+              };
+              return updated;
+            });
+          }
+
+          // A. Save completed exchange to PostgreSQL database
+          if (currentConvId) {
+            fetch(`${backendUrl}/api/conversations/${currentConvId}/messages`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                user_message: textToSend,
+                assistant_response: fullAssistantReply
+              })
+            }).catch(err => console.error("Error saving to DB:", err));
+
+            // B. Check if conversation title is still 'New Chat' -> trigger mini-agent!
+            const currentConv = conversations.find(c => c.id === currentConvId);
+            if (!currentConv || currentConv.name === 'New Chat' || !currentConv.name) {
+              fetch(`${backendUrl}/api/conversations/${currentConvId}/generate-title`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  user_message: textToSend,
+                  assistant_response: fullAssistantReply
+                })
+              })
+              .then(r => r.json())
+              .then(data => {
+                if (data.title) {
+                  setConversations(prev => prev.map(c => 
+                    c.id === currentConvId ? { ...c, name: data.title } : c
+                  ));
+                }
+              })
+              .catch(err => console.warn("Error generating title:", err));
+            }
+          }
+
+        } catch (error) {
+          setMessages(prev => {
+            const updated = [...prev];
+            const lastIdx = updated.length - 1;
+            updated[lastIdx] = {
+              ...updated[lastIdx],
+              content: updated[lastIdx].content + `\n\n*(Error: ${error.message}. Check backend on ${backendUrl})*`
+            };
+            return updated;
+          });
+        } finally {
+          setIsGenerating(false);
+        }
+      };
+
+      const handleKeyDown = (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault();
+          handleSend();
+        }
+      };
+
+      return (
+        <div class="h-full w-full flex bg-brandDark">
+          {/* ========================================================= */}
+          {/* LEFT SIDEBAR: Conversations List & DB History */}
+          {/* ========================================================= */}
+          <aside class="w-64 bg-sidebarDark border-r border-borderDark flex flex-col flex-shrink-0">
+            {/* Sidebar Brand & New Chat Button */}
+            <div class="p-3.5 border-b border-borderDark space-y-3">
+              <div class="flex items-center space-x-2 px-1">
+                <div class="w-7 h-7 rounded-lg bg-cyan-500/10 border border-brandCyan flex items-center justify-center font-bold text-brandCyan text-sm">
+                  ⚡
+                </div>
+                <div class="font-bold text-white text-sm tracking-wide">KRIYA WORKBENCH</div>
+              </div>
+
+              <button
+                onClick={handleNewChat}
+                disabled={isGenerating}
+                class="w-full py-2 px-3 rounded-lg bg-cyan-600/20 hover:bg-cyan-600/30 border border-brandCyan/40 text-cyan-300 text-xs font-semibold flex items-center justify-center space-x-1.5 transition disabled:opacity-50"
+              >
+                <span>+</span>
+                <span>New Chat</span>
+              </button>
+            </div>
+
+            {/* Conversations Scrollable List */}
+            <div class="flex-1 overflow-y-auto p-2 space-y-1 custom-scroll">
+              <div class="px-2 py-1 text-[10px] font-semibold tracking-wider text-zinc-500 uppercase">
+                Saved Chats (PostgreSQL)
+              </div>
+
+              {conversations.map((conv) => {
+                const isActive = conv.id === activeConvId;
+                return (
+                  <div
+                    key={conv.id}
+                    onClick={() => selectConversation(conv.id)}
+                    class={`group w-full px-2.5 py-2 rounded-md text-xs cursor-pointer flex items-center justify-between transition border ${
+                      isActive
+                        ? 'bg-cyan-950/40 border-cyan-800/60 text-cyan-200 font-medium'
+                        : 'border-transparent text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-200'
+                    }`}
+                  >
+                    <div class="flex items-center space-x-2 truncate">
+                      <span class="text-zinc-500 text-xs">💬</span>
+                      <span class="truncate">{conv.name || 'New Chat'}</span>
+                    </div>
+
+                    <button
+                      onClick={(e) => handleDeleteConversation(e, conv.id)}
+                      class="opacity-0 group-hover:opacity-100 p-1 hover:text-red-400 text-zinc-500 rounded transition"
+                      title="Delete chat"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                );
+              })}
+
+              {conversations.length === 0 && (
+                <div class="p-3 text-[11px] text-zinc-500 text-center">
+                  No saved chats yet.
+                </div>
+              )}
+            </div>
+
+            {/* Sidebar Footer: Database & Balancer Health */}
+            <div class="p-3 border-t border-borderDark/80 bg-black/40 text-[11px] space-y-1 text-zinc-400">
+              <div class="flex items-center space-x-1.5 text-emerald-400">
+                <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                <span>PostgreSQL (`kriya_db`)</span>
+              </div>
+              <div class="text-[10px] text-zinc-500 font-mono">
+                Port 5432 (Local Machine)
+              </div>
+            </div>
+          </aside>
+
+          {/* ========================================================= */}
+          {/* MAIN CHAT AREA */}
+          {/* ========================================================= */}
+          <main class="flex-1 flex flex-col h-full overflow-hidden bg-brandDark">
+            {/* Header */}
+            <header class="px-6 py-3.5 bg-panelDark border-b border-borderDark flex items-center justify-between">
+              <div>
+                <div class="flex items-center space-x-2">
+                  <h2 class="font-bold text-white text-base tracking-wide">
+                    {conversations.find(c => c.id === activeConvId)?.name || "New Chat"}
+                  </h2>
+                  <span class="text-xs px-2 py-0.5 rounded-full bg-cyan-950 text-cyan-400 border border-cyan-800/60 font-mono">
+                    MRPL
+                  </span>
+                </div>
+                <p class="text-xs text-zinc-400">Sovereign On-Premise Industrial AI (PS-26117)</p>
+              </div>
+
+              {/* Status Badge */}
+              <div class="flex items-center space-x-3">
+                <div class="flex items-center space-x-1.5 px-3 py-1 bg-emerald-950/40 border border-emerald-800/50 rounded-full text-xs text-emerald-400">
+                  <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                  <span>Air-Gapped / Sovereign</span>
+                </div>
+              </div>
+            </header>
+
+            {/* Model & Thinking Controls Bar */}
+            <div class="px-6 py-2 bg-brandDark border-b border-borderDark/60 flex items-center justify-between text-xs">
+              <div class="flex items-center space-x-4">
+                <div class="flex items-center space-x-1.5 text-zinc-400">
+                  <span>Model Route:</span>
+                  <select 
+                    value={selectedModel}
+                    onChange={(e) => setSelectedModel(e.target.value)}
+                    class="bg-panelDark border border-borderDark rounded px-2 py-1 text-zinc-200 text-xs focus:outline-none focus:border-brandCyan"
+                  >
+                    <option value="default">Auto / Default</option>
+                    <option value="general">General (Refinery SOP / Notes)</option>
+                    <option value="coder">Coder (Calculations / Math)</option>
+                    <option value="vision">Vision (Scanned Drawings)</option>
+                  </select>
+                </div>
+
+                {/* Thinking Mode Toggle */}
+                <button
+                  onClick={() => setThinkingMode(!thinkingMode)}
+                  class={`flex items-center space-x-1.5 px-2.5 py-1 rounded border transition ${
+                    thinkingMode 
+                      ? 'bg-purple-950/60 border-brandPurple text-purple-300 font-medium'
+                      : 'bg-panelDark border-borderDark text-zinc-400 hover:text-zinc-200'
+                  }`}
+                >
+                  <span>🧠 Reasoning Mode:</span>
+                  <span class={`font-bold ${thinkingMode ? 'text-purple-400' : 'text-zinc-500'}`}>
+                    {thinkingMode ? 'ON' : 'OFF'}
+                  </span>
+                </button>
+              </div>
+
+              <div class="text-zinc-500 font-mono text-[11px]">
+                Phone Gateway: <span class="text-zinc-400">100.98.154.51:8000</span>
+              </div>
+            </div>
+
+            {/* Chat Messages Container */}
+            <div class="flex-1 overflow-y-auto p-6 space-y-4 custom-scroll">
+              {messages.map((msg, index) => {
+                const isUser = msg.role === 'user';
+                const isLastAssistant = !isUser && index === messages.length - 1 && isGenerating;
+
+                return (
+                  <div key={index} class={`flex ${isUser ? 'justify-end' : 'justify-start'}`}>
+                    <div class={`max-w-3xl rounded-xl px-4 py-3 text-sm shadow-sm ${
+                      isUser 
+                        ? 'bg-cyan-600/90 text-white rounded-tr-none' 
+                        : 'bg-panelDark border border-borderDark text-zinc-200 rounded-tl-none w-full'
+                    }`}>
+                      <div class="flex items-center space-x-2 mb-1.5 opacity-70 text-xs">
+                        <span class="font-semibold">{isUser ? 'Engineer' : 'KRIYA Agent'}</span>
+                      </div>
+
+                      {isUser ? (
+                        <div class="whitespace-pre-wrap">{msg.content}</div>
+                      ) : (
+                        <AssistantMessageItem content={msg.content} isGenerating={isLastAssistant} />
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+              <div ref={messagesEndRef} />
+            </div>
+
+            {/* Quick Prompts */}
+            {messages.length <= 2 && (
+              <div class="px-6 py-2 flex items-center space-x-2 text-xs text-zinc-400 overflow-x-auto">
+                <span class="text-zinc-500">Quick prompts:</span>
+                <button 
+                  onClick={() => handleSend("Use terminal to list the files in the backend directory")}
+                  class="px-2.5 py-1 rounded bg-panelDark hover:bg-zinc-800 border border-borderDark text-cyan-300 whitespace-nowrap transition"
+                >
+                  🛠️ Run Terminal Tool
+                </button>
+                <button 
+                  onClick={() => handleSend("Search DuckDuckGo for the latest news about Mangalore Refinery and Petrochemicals Limited MRPL")}
+                  class="px-2.5 py-1 rounded bg-panelDark hover:bg-zinc-800 border border-borderDark text-amber-300 whitespace-nowrap transition"
+                >
+                  🔍 DuckDuckGo Web Search
+                </button>
+                <button 
+                  onClick={() => handleSend("Explain standard crude distillation heat exchanger inspection procedure at MRPL")}
+                  class="px-2.5 py-1 rounded bg-panelDark hover:bg-zinc-800 border border-borderDark text-zinc-300 whitespace-nowrap transition"
+                >
+                  📋 Inspection SOP
+                </button>
+              </div>
+            )}
+
+            {/* Input Box */}
+            <div class="p-4 bg-panelDark border-t border-borderDark">
+              <div class="max-w-4xl mx-auto flex items-center space-x-2">
+                <input
+                  type="text"
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  placeholder="Ask KRIYA or describe a task (e.g. 'check files in backend using terminal', 'search DuckDuckGo')..."
+                  disabled={isGenerating}
+                  class="flex-1 bg-brandDark border border-borderDark rounded-lg px-4 py-3 text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-brandCyan disabled:opacity-50 transition"
+                />
+                <button
+                  onClick={() => handleSend()}
+                  disabled={isGenerating || !input.trim()}
+                  class="px-5 py-3 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white font-medium text-sm disabled:opacity-40 disabled:hover:bg-cyan-600 transition flex items-center space-x-1"
+                >
+                  {isGenerating ? (
+                    <>
+                      <svg class="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+                      </svg>
+                      <span>Executing...</span>
+                    </>
+                  ) : (
+                    <span>Send</span>
+                  )}
+                </button>
+              </div>
+            </div>
+          </main>
+        </div>
+      );
+    }
+
+    ReactDOM.render(<App />, document.getElementById('root'));
+  </script>
+</body>
+</html>
