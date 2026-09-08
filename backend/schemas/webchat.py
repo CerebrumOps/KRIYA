@@ -1,0 +1,41 @@
+from typing import Any, Dict, List, Optional
+from pydantic import BaseModel, Field
+
+
+class WebChatMessage(BaseModel):
+    """A single message exchanged between user and KRIYA in the web UI."""
+    role: str = Field(..., description="Role: 'user' or 'assistant' or 'system'")
+    content: str = Field(..., description="Text message content")
+
+
+class WebChatRequest(BaseModel):
+    """
+    Business logic schema for chat requests coming from the web UI.
+    """
+    user_message: str = Field(
+        ...,
+        description="The latest query or message typed by the user (Required)"
+    )
+    history: Optional[List[WebChatMessage]] = Field(
+        default_factory=list,
+        description="List of prior messages in the active conversation"
+    )
+    thinking: Optional[bool] = Field(
+        default=False,
+        description="Toggle reasoning/thinking mode on or off"
+    )
+    model: Optional[str] = Field(
+        default="default",
+        description="Target model or routing tag: 'default', 'general', 'coder', 'vision'"
+    )
+    temperature: Optional[float] = Field(
+        default=0.2,
+        description="Sampling temperature"
+    )
+
+
+class WebChatResponse(BaseModel):
+    """Business logic schema for non-streamed responses back to the web UI."""
+    reply: str = Field(..., description="Generated text answer from KRIYA")
+    model_used: str = Field(..., description="The model that produced the answer")
+    status: str = Field(default="success", description="Status code or indicator")
