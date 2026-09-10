@@ -26,7 +26,7 @@ from backend.database.kriya_db.schema.conversation import CREATE_CONVERSATIONS_T
 env_path = Path(__file__).resolve().parent.parent.parent.parent.parent / ".env"
 load_dotenv(dotenv_path=env_path)
 
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres@localhost:5432/kriya_db")
+DATABASE_URL = os.getenv("DATABASE_URL")
 
 _pool: Optional[asyncpg.Pool] = None
 

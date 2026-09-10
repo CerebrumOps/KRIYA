@@ -10,13 +10,14 @@ import {
   GenerateTitleResponse,
 } from '../schemas/conversation';
 
-const DEFAULT_BACKEND_URL = 'http://localhost:5000';
+// Backend endpoint configured strictly from .env via Vite
+const BACKEND_URL: string = import.meta.env.VITE_BACKEND_URL;
 
 /**
  * Creates a new conversation in PostgreSQL.
  */
 export async function createConversation(
-  backendUrl: string = DEFAULT_BACKEND_URL
+  backendUrl: string = BACKEND_URL
 ): Promise<ConversationDetail> {
   const res = await fetch(`${backendUrl}/api/conversations`, {
     method: 'POST',
@@ -32,7 +33,7 @@ export async function createConversation(
  * content is only loaded when user clicks a particular chat).
  */
 export async function listConversations(
-  backendUrl: string = DEFAULT_BACKEND_URL
+  backendUrl: string = BACKEND_URL
 ): Promise<ConversationListItem[]> {
   const res = await fetch(`${backendUrl}/api/conversations`);
   if (!res.ok) throw new Error(`Failed to list conversations: ${res.status}`);
@@ -45,7 +46,7 @@ export async function listConversations(
  */
 export async function getConversation(
   convId: string,
-  backendUrl: string = DEFAULT_BACKEND_URL
+  backendUrl: string = BACKEND_URL
 ): Promise<ConversationDetail> {
   const res = await fetch(`${backendUrl}/api/conversations/${convId}`);
   if (!res.ok) throw new Error(`Failed to get conversation ${convId}: ${res.status}`);
@@ -59,7 +60,7 @@ export async function saveMessageExchange(
   convId: string,
   userMessage: string,
   assistantResponse: string,
-  backendUrl: string = DEFAULT_BACKEND_URL
+  backendUrl: string = BACKEND_URL
 ): Promise<void> {
   const res = await fetch(`${backendUrl}/api/conversations/${convId}/messages`, {
     method: 'POST',
@@ -79,7 +80,7 @@ export async function generateConversationTitle(
   convId: string,
   userMessage: string,
   assistantResponse: string,
-  backendUrl: string = DEFAULT_BACKEND_URL
+  backendUrl: string = BACKEND_URL
 ): Promise<string> {
   const res = await fetch(`${backendUrl}/api/conversations/${convId}/generate-title`, {
     method: 'POST',
@@ -99,7 +100,7 @@ export async function generateConversationTitle(
  */
 export async function deleteConversation(
   convId: string,
-  backendUrl: string = DEFAULT_BACKEND_URL
+  backendUrl: string = BACKEND_URL
 ): Promise<void> {
   const res = await fetch(`${backendUrl}/api/conversations/${convId}`, {
     method: 'DELETE',

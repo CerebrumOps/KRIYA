@@ -15,9 +15,9 @@ from backend.schemas.model_request import (
 env_path = Path(__file__).resolve().parent.parent.parent / ".env"
 load_dotenv(dotenv_path=env_path)
 
-# Central Sovereign Load Balancer configuration (loaded from .env)
-DEFAULT_BASE_URL = os.getenv("MODEL_BALANCER_URL", "http://100.98.154.51:8000/v1")
-DEFAULT_API_KEY = os.getenv("MODEL_BALANCER_KEY", "sih2026")
+# Central Sovereign Load Balancer configuration (loaded strictly from .env)
+DEFAULT_BASE_URL = os.getenv("MODEL_BALANCER_URL")
+DEFAULT_API_KEY = os.getenv("MODEL_BALANCER_KEY")
 
 
 def get_openai_client(

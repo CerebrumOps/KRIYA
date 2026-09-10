@@ -5,10 +5,8 @@
 # Runs BOTH the Backend (Port 5000) and Frontend (Port 3000) concurrently
 # from a single terminal during local development.
 #
-# Ports Used:
-#   - Frontend UI:  http://localhost:3000
-#   - Backend API:  http://localhost:5000
-#   - Balancer:     http://100.98.154.51:8000 (Phone gateway)
+# Sourced dynamically from .env:
+#   - FRONTEND_HOST, FRONTEND_PORT, BACKEND_URL, MODEL_BALANCER_URL
 #   (Ports 8000 and 8080 are strictly preserved for model server / balancer)
 #
 # Press Ctrl+C at any time to cleanly stop both services.
@@ -21,25 +19,34 @@ import sys
 import time
 from pathlib import Path
 
+from dotenv import load_dotenv
+
 ROOT_DIR = Path(__file__).resolve().parent
+env_path = ROOT_DIR / ".env"
+load_dotenv(dotenv_path=env_path)
 
 # Locate Python binary (prefer active venv if present)
 VENV_PYTHON = ROOT_DIR / ".venv" / "bin" / "python"
 PYTHON_EXEC = str(VENV_PYTHON) if VENV_PYTHON.exists() else sys.executable
+
+BACKEND_URL = os.getenv("BACKEND_URL")
+FRONTEND_PORT = os.getenv("FRONTEND_PORT")
+FRONTEND_HOST = os.getenv("FRONTEND_HOST")
+MODEL_BALANCER_URL = os.getenv("MODEL_BALANCER_URL")
 
 
 def main():
     print("=" * 65)
     print("  🚀 Starting KRIYA Development Environment (Backend + Frontend)")
     print("=" * 65)
-    print("  🌐 Frontend Web UI:    http://localhost:3000")
-    print("  ⚙️  Backend FastAPI:   http://localhost:5000")
-    print("  📚 API Documentation:  http://localhost:5000/docs")
-    print("  📱 Phone LoadBalancer: http://100.98.154.51:8000")
+    print(f"  🌐 Frontend Web UI:    http://{FRONTEND_HOST}:{FRONTEND_PORT}")
+    print(f"  ⚙️  Backend FastAPI:   {BACKEND_URL}")
+    print(f"  📚 API Documentation:  {BACKEND_URL}/docs")
+    print(f"  📱 Phone LoadBalancer: {MODEL_BALANCER_URL}")
     print("=" * 65)
-    print("  [Tip] For multi-laptop demos, you can also run them separately:")
-    print("        Laptop A (Backend):  python backend/run_backend.py")
-    print("        Laptop B (Frontend): python frontend/run_frontend.py")
+    print("  [Tip] For multi-device demos, you can also run them separately:")
+    print("        Backend Node:  python backend/run_backend.py")
+    print("        Frontend Node: python frontend/run_frontend.py")
     print("=" * 65)
     print("  Press Ctrl+C to stop all services.\n")
 

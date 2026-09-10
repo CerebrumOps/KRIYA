@@ -2,7 +2,7 @@
 # ==============================================================================
 # KRIYA - Frontend Server Runner
 # ==============================================================================
-# Launches the Vite React frontend development server on port 3000.
+# Launches the Vite React frontend development server using configuration loaded from .env.
 # Avoids ports 8000 and 8080 (reserved for LLM load balancer / inference node).
 #
 # Usage:
@@ -18,9 +18,18 @@ import sys
 from pathlib import Path
 
 
+from dotenv import load_dotenv
+
+ROOT_DIR = Path(__file__).resolve().parent.parent
+env_path = ROOT_DIR / ".env"
+load_dotenv(dotenv_path=env_path)
+
+
 def main():
     frontend_dir = Path(__file__).resolve().parent
-    port = os.getenv("FRONTEND_PORT", "3000")
+    port = os.getenv("FRONTEND_PORT")
+    host = os.getenv("FRONTEND_HOST")
+    backend_url = os.getenv("VITE_BACKEND_URL")
 
     npm_bin = shutil.which("npm")
     if not npm_bin:
@@ -32,11 +41,11 @@ def main():
             sys.exit(1)
 
     print("=" * 60)
-    print(f"  Starting KRIYA React/Vite Frontend on port {port}")
-    print(f"  Open in browser: http://localhost:{port}")
+    print(f"  Starting KRIYA React/Vite Frontend on host {host} port {port}")
+    print(f"  Connected Backend API: {backend_url}")
     print("=" * 60)
 
-    cmd = [npm_bin, "run", "dev", "--", "--port", port]
+    cmd = [npm_bin, "run", "dev", "--", "--host", host, "--port", port]
     try:
         subprocess.run(cmd, cwd=str(frontend_dir), check=True)
     except KeyboardInterrupt:

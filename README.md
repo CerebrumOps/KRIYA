@@ -132,16 +132,22 @@ cp .env.example .env
 ```
 
 ```env
-# Local LLM Inference Gateway (OpenAI compatible)
-MODEL_BALANCER_URL=http://localhost:8080/v1
-MODEL_BALANCER_KEY=local-key
+# Sovereign LLM Load Balancer / Phone Gateway (OpenAI compatible)
+MODEL_BALANCER_URL=http://100.98.154.51:8000/v1
+MODEL_BALANCER_KEY=sih2026
 
-# PostgreSQL Connection
-DATABASE_URL=postgresql://postgres@localhost:5432/kriya_db
-
-# Ports (Ports 8000 and 8080 are strictly reserved for inference servers)
+# Backend Server Configuration
+BACKEND_HOST=0.0.0.0
 BACKEND_PORT=5000
+BACKEND_URL=http://100.100.63.50:5000
+
+# Frontend Server Configuration
+FRONTEND_HOST=0.0.0.0
 FRONTEND_PORT=3000
+VITE_BACKEND_URL=http://100.100.63.50:5000
+
+# PostgreSQL Database Configuration
+DATABASE_URL=postgresql://postgres@100.100.63.50:5432/kriya_db
 ```
 
 ### 3. Initialize PostgreSQL Database
@@ -162,9 +168,9 @@ To launch both the backend API and frontend UI concurrently:
 python run.py
 ```
 
-- **Frontend Workbench UI**: `http://localhost:3000`
-- **Backend API**: `http://localhost:5000`
-- **Interactive OpenAPI Docs**: `http://localhost:5000/docs`
+- **Frontend Workbench UI**: `http://<FRONTEND_IP>:3000`
+- **Backend API**: `http://<BACKEND_IP>:5000`
+- **Interactive OpenAPI Docs**: `http://<BACKEND_IP>:5000/docs`
 
 You can also run services independently on separate machines:
 

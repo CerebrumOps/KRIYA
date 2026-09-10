@@ -5,8 +5,8 @@
 
 import { WebChatRequest, WebChatResponse } from '../schemas/chat';
 
-// Default backend endpoint (port 5000 avoids 8000 and 8080)
-const DEFAULT_BACKEND_URL = 'http://localhost:5000';
+// Backend endpoint configured strictly from .env via Vite
+const BACKEND_URL: string = import.meta.env.VITE_BACKEND_URL;
 
 /**
  * Sends a chat request and streams back tokens in real-time.
@@ -22,7 +22,7 @@ export async function streamChatMessage(
   onChunk: (token: string) => void,
   onComplete?: () => void,
   onError?: (err: Error) => void,
-  backendUrl: string = DEFAULT_BACKEND_URL
+  backendUrl: string = BACKEND_URL
 ): Promise<void> {
   const url = `${backendUrl}/api/chat/stream`;
 
@@ -76,7 +76,7 @@ export async function streamChatMessage(
  */
 export async function sendChatMessage(
   request: WebChatRequest,
-  backendUrl: string = DEFAULT_BACKEND_URL
+  backendUrl: string = BACKEND_URL
 ): Promise<WebChatResponse> {
   const url = `${backendUrl}/api/chat`;
 

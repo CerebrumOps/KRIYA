@@ -1,7 +1,7 @@
 # ==============================================================================
 # KRIYA - Backend Server Runner
 # ==============================================================================
-# Runs the FastAPI backend server on a dedicated port (default: 5000).
+# Runs the FastAPI backend server using configuration loaded from .env.
 # Does NOT use port 8000 (load balancer) or 8080 (llama-server).
 #
 # Usage:
@@ -13,6 +13,7 @@
 import os
 import sys
 from pathlib import Path
+from dotenv import load_dotenv
 import uvicorn
 
 # Ensure the project root directory is in sys.path
@@ -21,16 +22,19 @@ project_root = current_dir.parent if current_dir.name == "backend" else current_
 if str(project_root) not in sys.path:
     sys.path.insert(0, str(project_root))
 
-# Default port 5000 (avoids 8000 and 8080)
-PORT = int(os.getenv("BACKEND_PORT", 5000))
-HOST = os.getenv("BACKEND_HOST", "0.0.0.0")
+env_path = project_root / ".env"
+load_dotenv(dotenv_path=env_path)
+
+PORT = int(os.getenv("BACKEND_PORT"))
+HOST = os.getenv("BACKEND_HOST")
+BACKEND_URL = os.getenv("BACKEND_URL")
 
 
 def main():
     print("=" * 60)
-    print(f"  Starting KRIYA Backend Server on http://{HOST}:{PORT}")
-    print(f"  Swagger Docs: http://localhost:{PORT}/docs")
-    print(f"  Health Check: http://localhost:{PORT}/health")
+    print(f"  Starting KRIYA Backend Server on {BACKEND_URL}")
+    print(f"  Swagger Docs: {BACKEND_URL}/docs")
+    print(f"  Health Check: {BACKEND_URL}/health")
     print("=" * 60)
     
     uvicorn.run(
