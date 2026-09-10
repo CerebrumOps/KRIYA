@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Menu, X, Plus, Wrench } from 'lucide-react';
+import { Menu, X, Plus, Wrench, PanelLeftOpen, PanelLeftClose, Flame, Compass, ShieldCheck, Sun, Moon } from 'lucide-react';
 import Sidebar from './components/Sidebar/Sidebar';
 import ChatArea from './components/ChatArea/ChatArea';
 import RightToolPanel from './components/RightToolPanel/RightToolPanel';
@@ -14,7 +14,7 @@ import {
 } from './api/conversation_api';
 import { HistoryItem } from './components/Sidebar/ChatHistory';
 import { UIMessage } from './components/ChatArea/MessageList';
-import { ToolCallItem } from './components/RightPanel/ToolCalling';
+import { ToolCallItem } from './components/RightToolPanel/RightToolPanel';
 import { parseErrorInfo, formatErrorMarkdown } from './utils/errorHandler';
 import './App.css';
 
@@ -151,6 +151,21 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [isToolPanelExpanded, setIsToolPanelExpanded] = useState(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+    const saved = localStorage.getItem('kriya_theme');
+    return saved === 'dark' ? 'dark' : 'light';
+  });
+
+  // Sync theme attribute to HTML root and persist in localStorage
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('kriya_theme', theme);
+  }, [theme]);
+
+  const toggleTheme = () => {
+    setTheme((prev) => (prev === 'light' ? 'dark' : 'light'));
+  };
 
   const isAnyRunning = toolCalls.some((tc) => tc.status === 'running');
   const prevRunningRef = useRef<boolean>(false);
@@ -450,47 +465,46 @@ export default function App() {
 
   return (
     <div className="app-container">
-      {/* Mobile / Tablet Header Bar */}
+      {/* Mobile-only Header Bar (<= 1024px) */}
       <header className="mobile-top-bar" aria-label="Mobile Navigation">
         <button
+          type="button"
           className="mobile-nav-btn"
           onClick={() => setIsMobileSidebarOpen((prev) => !prev)}
           aria-label="Toggle navigation menu"
-          title="Menu"
         >
           {isMobileSidebarOpen ? <X size={20} /> : <Menu size={20} />}
         </button>
 
         <div className="mobile-brand">
-          <span className="mobile-brand-dot" />
-          <span className="mobile-brand-title">KRIYA</span>
-          <span className="mobile-brand-badge">AI</span>
+          <div className="brand-emblem-circle" style={{ width: 28, height: 28 }}>
+            <Flame size={15} className="brand-flame-icon" />
+          </div>
+          <span className="brand-name" style={{ fontSize: 16 }}>KRIYA</span>
         </div>
 
-        <div className="mobile-actions">
+        <div className="mobile-actions-group">
           <button
+            type="button"
+            className="mobile-nav-btn"
+            onClick={toggleTheme}
+            aria-label={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+            title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+          >
+            {theme === 'dark' ? <Sun size={17} /> : <Moon size={17} />}
+          </button>
+
+          <button
+            type="button"
             className="mobile-nav-btn"
             onClick={() => {
               handleNewChat();
               setIsMobileSidebarOpen(false);
             }}
-            aria-label="Start new chat"
-            title="New Chat"
+            aria-label="New chat"
           >
             <Plus size={18} />
           </button>
-
-          {toolCalls.length > 0 && (
-            <button
-              className={`mobile-nav-btn mobile-tool-btn ${isAnyRunning ? 'running' : ''}`}
-              onClick={() => setIsToolPanelExpanded((prev) => !prev)}
-              aria-label="Toggle tool panel"
-              title="Tool Execution Panel"
-            >
-              <Wrench size={17} />
-              {isAnyRunning && <span className="mobile-tool-badge" />}
-            </button>
-          )}
         </div>
       </header>
 
@@ -505,11 +519,26 @@ export default function App() {
 
       {/* Main Multi-Column Content Area */}
       <div className="app-workspace-body">
+        {/* Floating Expand Sidebar Trigger (Desktop when collapsed) */}
+        {isSidebarCollapsed && (
+          <button
+            type="button"
+            className="sidebar-expand-trigger"
+            onClick={() => setIsSidebarCollapsed(false)}
+            title="Expand Sidebar"
+            aria-label="Expand Sidebar"
+          >
+            <PanelLeftOpen size={17} />
+          </button>
+        )}
+
         {/* 1. Left Sidebar */}
-        <div className={`sidebar-responsive-wrapper ${isMobileSidebarOpen ? 'sidebar-open' : ''}`}>
+        <div className={`sidebar-responsive-wrapper ${isMobileSidebarOpen ? 'sidebar-open' : ''} ${isSidebarCollapsed ? 'desktop-collapsed' : ''}`}>
           <Sidebar
             history={history}
             activeChatId={activeChatId}
+            theme={theme}
+            onToggleTheme={toggleTheme}
             onNewChat={() => {
               handleNewChat();
               setIsMobileSidebarOpen(false);
@@ -519,6 +548,11 @@ export default function App() {
               setIsMobileSidebarOpen(false);
             }}
             onDeleteChat={handleDeleteChat}
+            onSelectPrompt={(prompt) => {
+              handleSendMessage(prompt);
+              setIsMobileSidebarOpen(false);
+            }}
+            onToggleCollapse={() => setIsSidebarCollapsed(true)}
           />
         </div>
 
