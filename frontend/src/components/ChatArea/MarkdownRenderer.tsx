@@ -4,6 +4,7 @@ import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import remarkGfm from 'remark-gfm';
 import { Copy, Check } from 'lucide-react';
+import { copyTextToClipboard } from '../../utils/clipboard';
 
 /**
  * Normalizes LaTeX delimiters so that:
@@ -32,13 +33,10 @@ function CodeBlock({ className, children, ...props }: CodeBlockProps) {
   const codeString = String(children).replace(/\n$/, '');
 
   const handleCopy = async () => {
-    try {
-      await navigator.clipboard.writeText(codeString);
+    const ok = await copyTextToClipboard(codeString);
+    if (ok) {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-    } catch {
-      // Fallback
-      setCopied(false);
     }
   };
 

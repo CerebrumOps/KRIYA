@@ -16,8 +16,16 @@ export default function ChatArea({
 }: ChatAreaProps) {
   return (
     <main className="chat-area" aria-label="Main chat area">
-      <MessageList messages={messages} isLoading={isLoading} />
-      <ChatInput onSendMessage={onSendMessage} disabled={isLoading} />
+      <MessageList 
+        messages={messages} 
+        isLoading={isLoading} 
+        onSelectPrompt={onSendMessage} 
+      />
+
+      <ChatInput 
+        onSendMessage={onSendMessage} 
+        disabled={isLoading} 
+      />
     </main>
   );
 }

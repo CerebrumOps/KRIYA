@@ -1,14 +1,30 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { ArrowUp } from 'lucide-react';
 
 export interface ChatInputProps {
   onSendMessage: (text: string) => void;
   disabled?: boolean;
+  placeholder?: string;
+  initialValue?: string;
 }
 
-export default function ChatInput({ onSendMessage, disabled = false }: ChatInputProps) {
-  const [input, setInput] = useState('');
+export default function ChatInput({ 
+  onSendMessage, 
+  disabled = false,
+  placeholder = "Search P&ID diagrams, review inspection reports, execute calculations and more....",
+  initialValue = ""
+}: ChatInputProps) {
+  const [input, setInput] = useState(initialValue);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    if (initialValue) {
+      setInput(initialValue);
+      if (textareaRef.current) {
+        textareaRef.current.focus();
+      }
+    }
+  }, [initialValue]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -33,7 +49,7 @@ export default function ChatInput({ onSendMessage, disabled = false }: ChatInput
     setInput(e.target.value);
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
-      textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 160)}px`;
+      textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 180)}px`;
     }
   };
 
@@ -41,32 +57,33 @@ export default function ChatInput({ onSendMessage, disabled = false }: ChatInput
     <div className="chat-input-wrapper">
       <div className="chat-input-inner">
         <form className="chat-input-form" onSubmit={handleSubmit}>
-          <div className="chat-input-container">
+          <div className={`chat-prompt-card ${input.includes('\n') ? 'multiline' : ''}`}>
             <textarea
               ref={textareaRef}
               id="chat-textarea"
               className="chat-textarea"
-              placeholder="Type a message..."
+              placeholder={placeholder}
               value={input}
               onChange={handleChange}
               onKeyDown={handleKeyDown}
               rows={1}
               disabled={disabled}
             />
+
             <button
               type="submit"
               id="send-message-btn"
-              className={`send-button ${input.trim() ? 'active' : ''}`}
+              className={`card-send-btn ${input.trim() ? 'active' : ''}`}
               disabled={disabled || !input.trim()}
               aria-label="Send message"
             >
-              <ArrowUp size={18} strokeWidth={2.5} />
+              <span className="send-btn-label">Send</span>
+              <div className="send-btn-icon-wrap">
+                <ArrowUp size={13} strokeWidth={2.8} />
+              </div>
             </button>
           </div>
         </form>
-        <div className="chat-input-tagline">
-          Knowledge-based Reasoning &amp; Intelligent Action
-        </div>
       </div>
     </div>
   );
