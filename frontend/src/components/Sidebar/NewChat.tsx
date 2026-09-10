@@ -1,5 +1,5 @@
 import React from 'react';
-import { Plus } from 'lucide-react';
+import { SquarePen } from 'lucide-react';
 
 export interface NewChatProps {
   onNewChat: () => void;
@@ -13,8 +13,9 @@ export default function NewChat({ onNewChat }: NewChatProps) {
         className="new-chat-btn"
         onClick={onNewChat}
         id="new-chat-btn"
+        aria-label="Start a new chat session"
       >
-        <Plus size={18} strokeWidth={2} />
+        <SquarePen size={16} strokeWidth={2.2} className="new-chat-icon" />
         <span>New Chat</span>
       </button>
     </div>
