@@ -5,7 +5,8 @@ import {
   ShieldCheck,
   PanelLeftClose,
   Sun,
-  Moon
+  Moon,
+  LogOut
 } from 'lucide-react';
 import NewChat from './NewChat';
 import ChatHistory, { HistoryItem } from './ChatHistory';
@@ -21,6 +22,7 @@ export interface SidebarProps {
   onDeleteChat?: (id: string) => void;
   onSelectPrompt?: (prompt: string) => void;
   onToggleCollapse?: () => void;
+  onSignOut?: () => void;
 }
 
 export default function Sidebar({ 
@@ -32,7 +34,8 @@ export default function Sidebar({
   onSelectChat, 
   onDeleteChat,
   onSelectPrompt,
-  onToggleCollapse
+  onToggleCollapse,
+  onSignOut
 }: SidebarProps) {
   return (
     <aside className="sidebar" aria-label="Workbench navigation sidebar">
@@ -94,7 +97,7 @@ export default function Sidebar({
             <div className="user-avatar-placeholder">
               <span>OP</span>
             </div>
-            <span className="user-status-dot" title="Air-Gapped | Sovereign" />
+            <span className="user-status-dot" title="Air-Gapped | Secure" />
           </div>
           <div className="user-info-text">
             <div className="user-name-row">
@@ -102,7 +105,30 @@ export default function Sidebar({
             </div>
             <span className="user-meta">engineer@mrpl.co.in</span>
           </div>
-          <ChevronDown size={15} className="user-card-chevron" />
+          {onSignOut ? (
+            <button
+              type="button"
+              className="sidebar-signout-btn"
+              onClick={onSignOut}
+              title="Sign Out / Return to Auth Screen"
+              aria-label="Sign Out"
+              style={{
+                background: 'transparent',
+                border: 'none',
+                color: 'var(--c-text-muted)',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                padding: '4px',
+                borderRadius: '6px',
+                transition: 'color 0.15s ease, background-color 0.15s ease'
+              }}
+            >
+              <LogOut size={15} />
+            </button>
+          ) : (
+            <ChevronDown size={15} className="user-card-chevron" />
+          )}
         </div>
       </div>
     </aside>

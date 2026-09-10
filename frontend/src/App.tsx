@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Menu, X, Plus, Wrench, PanelLeftOpen, PanelLeftClose, Flame, Compass, ShieldCheck, Sun, Moon } from 'lucide-react';
+import { Menu, X, Plus, Wrench, PanelLeftOpen, PanelLeftClose, Flame, Compass, ShieldCheck, Sun, Moon, LogOut } from 'lucide-react';
 import Sidebar from './components/Sidebar/Sidebar';
 import ChatArea from './components/ChatArea/ChatArea';
 import RightToolPanel from './components/RightToolPanel/RightToolPanel';
+import AuthLayout from './components/Auth/AuthLayout';
 import { streamChatMessage } from './api/chat_api';
 import { 
   createConversation, 
@@ -144,6 +145,7 @@ function parseAssistantStream(text: string): ParsedStreamResult {
 }
 
 export default function App() {
+  const [currentView, setCurrentView] = useState<'auth' | 'app'>('auth');
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
   const [messages, setMessages] = useState<UIMessage[]>([]);
@@ -463,6 +465,16 @@ export default function App() {
     }
   };
 
+  if (currentView === 'auth') {
+    return (
+      <AuthLayout
+        onLoginSuccess={() => setCurrentView('app')}
+        theme={theme}
+        onToggleTheme={toggleTheme}
+      />
+    );
+  }
+
   return (
     <div className="app-container">
       {/* Mobile-only Header Bar (<= 1024px) */}
@@ -492,6 +504,16 @@ export default function App() {
             title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
           >
             {theme === 'dark' ? <Sun size={17} /> : <Moon size={17} />}
+          </button>
+
+          <button
+            type="button"
+            className="mobile-nav-btn"
+            onClick={() => setCurrentView('auth')}
+            aria-label="Return to Authentication Screen"
+            title="Return to Authentication Screen"
+          >
+            <LogOut size={17} />
           </button>
 
           <button
@@ -553,6 +575,7 @@ export default function App() {
               setIsMobileSidebarOpen(false);
             }}
             onToggleCollapse={() => setIsSidebarCollapsed(true)}
+            onSignOut={() => setCurrentView('auth')}
           />
         </div>
 
