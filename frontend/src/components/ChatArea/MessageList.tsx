@@ -1,21 +1,28 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { 
-  Bot, 
+  Flame, 
   User, 
-  Sparkles, 
-  Loader2, 
-  BrainCircuit, 
   ChevronDown, 
-  ChevronRight,
+  ChevronRight, 
+  Sparkles, 
+  BrainCircuit, 
+  Loader2,
+  Terminal,
   Cpu,
-  Zap,
   Clock,
   Copy,
   Check,
-  AlertTriangle
+  AlertTriangle,
+  FileCheck,
+  Layers,
+  Calculator,
+  Activity,
+  Wrench,
+  ShieldCheck
 } from 'lucide-react';
 import MarkdownRenderer from './MarkdownRenderer';
 import { ErrorInfo } from '../../utils/errorHandler';
+import { copyTextToClipboard } from '../../utils/clipboard';
 
 export interface MessageMeta {
   model?: string;
@@ -41,152 +48,165 @@ export interface UIMessage {
 export interface MessageListProps {
   messages?: UIMessage[];
   isLoading?: boolean;
+  onSelectPrompt?: (prompt: string) => void;
 }
 
-/**
- * Formats raw model string into a clean, concise name for the footer badge
- */
-function formatModelName(modelStr?: string): string {
-  if (!modelStr) return 'KRIYA Model';
-  let name = String(modelStr);
-  if (name.includes('/')) {
-    name = name.split('/').pop() || name;
+const SUGGESTION_PILLS = [
+  {
+    icon: Flame,
+    label: 'Refinery Alerts',
+    prompt: 'Check all active refinery operational alarms, relief valve status, and GPU node telemetry.'
+  },
+  {
+    icon: Layers,
+    label: 'P&ID Analysis',
+    prompt: 'Inspect the P&ID drawing for Crude Distillation Unit and verify safety relief valves.'
+  },
+  {
+    icon: FileCheck,
+    label: 'Inspection SOPs',
+    prompt: 'Review the latest compressor inspection report and draft a formal approval note.'
+  },
+  {
+    icon: Calculator,
+    label: 'Compressor Calc',
+    prompt: 'Calculate the Darcy-Weisbach pressure drop and Reynolds number for a 12-inch crude oil pipeline.'
+  },
+  {
+    icon: Wrench,
+    label: 'Execute Tool',
+    prompt: 'Execute the pipeline throughput calculation tool with flow rate 850 m3/h and viscosity 32 cSt.'
+  },
+  {
+    icon: Activity,
+    label: 'Process Monitor',
+    prompt: 'Show live telemetry, GPU cluster temperature, and gas compressor vibration status.'
   }
-  if (name.toLowerCase().endsWith('.gguf')) {
-    name = name.slice(0, -5);
-  }
-  name = name.replace(/[-_]Q[0-9]+[A-Za-z0-9_]*/i, '');
-  name = name.replace(/([a-zA-Z]+)([0-9])/g, '$1 $2').replace(/[-_]/g, ' ');
-  return name.trim() || modelStr;
-}
+];
 
-/**
- * Helper to strip markdown formatting characters from text
- */
-function stripMarkdown(text?: string): string {
-  if (!text) return '';
-  return text
-    .replace(/^#{1,6}\s+/gm, '')
-    .replace(/\*\*\*(.*?)\*\*\*/g, '$1')
-    .replace(/\*\*(.*?)\*\*/g, '$1')
-    .replace(/\*(.*?)\*/g, '$1')
-    .replace(/___(.*?)___/g, '$1')
-    .replace(/__(.*?)__/g, '$1')
-    .replace(/_([^_]+)_/g, '$1')
-    .replace(/`([^`]+)`/g, '$1')
-    .replace(/~~(.*?)~~/g, '$1')
-    .replace(/^[\s]*[-*+]\s+/gm, '• ')
-    .replace(/^\s*>\s+/gm, '')
-    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
-    .trim();
-}
+export default function MessageList({
+  messages = [],
+  isLoading = false,
+  onSelectPrompt,
+}: MessageListProps) {
+  const [expandedReasoningMap, setExpandedReasoningMap] = useState<Record<string, boolean>>({});
+  const [copiedId, setCopiedId] = useState<string | null>(null);
 
-export default function MessageList({ messages = [], isLoading = false }: MessageListProps) {
-  const bottomRef = useRef<HTMLDivElement>(null);
-  // Store expanded state for reasoning blocks: map of msgId -> boolean
-  const [expandedReasoning, setExpandedReasoning] = useState<Record<string, boolean>>({});
-  const [copiedMsgId, setCopiedMsgId] = useState<string | null>(null);
-  const [expandedErrorDetails, setExpandedErrorDetails] = useState<Record<string, boolean>>({});
+  const containerRef = useRef<HTMLDivElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const activeThoughtRef = useRef<HTMLDivElement>(null);
+  const thoughtEndRef = useRef<HTMLDivElement>(null);
 
-  const toggleErrorDetails = (id: string) => {
-    setExpandedErrorDetails((prev) => ({
+  // Auto-scroll handler: 'auto' for fast streaming updates, 'smooth' for settled completions
+  const scrollToBottom = (behavior: ScrollBehavior = 'auto') => {
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior, block: 'end' });
+    } else if (containerRef.current) {
+      containerRef.current.scrollTop = containerRef.current.scrollHeight;
+    }
+  };
+
+  useEffect(() => {
+    if (messages.length === 0 && !isLoading) return;
+    const streamingMsg = messages.find((m) => m.isStreaming);
+    const isThinkingNow = Boolean(streamingMsg?.isThinking && streamingMsg?.isStreaming);
+
+    if (isThinkingNow) {
+      // While giving reasoning: auto-scroll inside the thought drawer to keep newest reasoning in view
+      if (activeThoughtRef.current) {
+        activeThoughtRef.current.scrollTop = activeThoughtRef.current.scrollHeight;
+      }
+      if (thoughtEndRef.current) {
+        thoughtEndRef.current.scrollIntoView({ behavior: 'auto', block: 'end' });
+      }
+
+      // Also keep the main chat container scrolled to show the active reasoning drawer
+      if (messagesEndRef.current) {
+        messagesEndRef.current.scrollIntoView({ behavior: 'auto', block: 'end' });
+      } else if (containerRef.current) {
+        containerRef.current.scrollTop = containerRef.current.scrollHeight;
+      }
+    } else if (streamingMsg || isLoading) {
+      // Primary response is actively streaming - scroll immediately with 'auto'
+      scrollToBottom('auto');
+    } else {
+      // Completed or message appended - smooth scroll
+      scrollToBottom('smooth');
+    }
+  }, [messages, isLoading, expandedReasoningMap]);
+
+  const toggleReasoning = (id: string) => {
+    setExpandedReasoningMap((prev) => ({
       ...prev,
       [id]: !prev[id],
     }));
   };
 
-  const handleCopyMessage = async (id: string, rawContent?: string) => {
-    try {
-      const element = document.getElementById(`rendered-message-${id}`);
-      let renderedPlainText = '';
-      let renderedHtml = '';
-
-      if (element) {
-        // Clone element to remove any buttons or cursors before extracting text
-        const clone = element.cloneNode(true) as HTMLElement;
-        clone.querySelectorAll('.streaming-cursor, .message-action-copy-btn, .markdown-code-copy').forEach((el) => el.remove());
-        renderedPlainText = clone.innerText || clone.textContent || '';
-        renderedHtml = clone.innerHTML || '';
-      }
-
-      if (!renderedPlainText.trim()) {
-        renderedPlainText = stripMarkdown(rawContent || '');
-      }
-
-      if (navigator.clipboard && (window as any).ClipboardItem && renderedHtml) {
-        try {
-          const textBlob = new Blob([renderedPlainText], { type: 'text/plain' });
-          const htmlBlob = new Blob([renderedHtml], { type: 'text/html' });
-          await navigator.clipboard.write([
-            new (window as any).ClipboardItem({
-              'text/plain': textBlob,
-              'text/html': htmlBlob,
-            }),
-          ]);
-        } catch {
-          await navigator.clipboard.writeText(renderedPlainText);
-        }
-      } else if (navigator.clipboard) {
-        await navigator.clipboard.writeText(renderedPlainText);
-      }
-
-      setCopiedMsgId(id);
-      setTimeout(() => setCopiedMsgId(null), 2000);
-    } catch (err) {
-      console.warn('Clipboard write error, falling back to clean text copy:', err);
-      if (rawContent && navigator.clipboard) {
-        await navigator.clipboard.writeText(stripMarkdown(rawContent));
-        setCopiedMsgId(id);
-        setTimeout(() => setCopiedMsgId(null), 2000);
-      }
-    }
-  };
-
-  useEffect(() => {
-    // Auto scroll down as new tokens or thoughts stream in
-    bottomRef.current?.scrollIntoView({ behavior: 'auto' });
-  }, [messages, isLoading]);
-
-  const toggleReasoning = (id: string) => {
-    setExpandedReasoning((prev) => ({
-      ...prev,
-      [id]: prev[id] === undefined ? false : !prev[id],
-    }));
-  };
-
   const isReasoningExpanded = (msg: UIMessage) => {
-    // If explicitly toggled by user, honor user preference
-    if (expandedReasoning[msg.id] !== undefined) {
-      return expandedReasoning[msg.id];
+    if (expandedReasoningMap[msg.id] !== undefined) {
+      return expandedReasoningMap[msg.id];
     }
-    // Default: expanded while actively streaming thoughts, collapsed once answer begins
-    if (msg.isStreaming && msg.isThinking) {
-      return true;
-    }
-    return false;
+    return Boolean(msg.isThinking && msg.isStreaming);
   };
 
+  const handleCopy = async (id: string, text?: string) => {
+    if (!text) return;
+    const ok = await copyTextToClipboard(text);
+    if (ok) {
+      setCopiedId(id);
+      setTimeout(() => setCopiedId(null), 2000);
+    }
+  };
+
+  // -------------------------------------------------------------
+  // EMPTY STATE HERO (Exact Sorin-AI Reference Design)
+  // -------------------------------------------------------------
   if (messages.length === 0 && !isLoading) {
     return (
       <div className="message-list-empty">
-        <div className="empty-state-card">
-          <div className="empty-state-icon">
-            <Sparkles size={28} />
+        <div className="empty-state-container">
+          {/* Concentric Mint Halo Emblem */}
+          <div className="empty-hero-emblem-wrap">
+            <div className="hero-emblem-glow" />
+            <div className="hero-emblem-outer-ring" />
+            <div className="hero-emblem-middle-ring" />
+            <div className="hero-emblem-core">
+              <Flame size={30} className="hero-emblem-icon" />
+            </div>
           </div>
-          <h2 className="empty-state-title">How can I help you today?</h2>
-          <p className="empty-state-subtitle">
-            Start a new conversation or ask a question.
-          </p>
+
+          {/* Reference Headline: Hey, I'm sorin. How can I help you today? */}
+          <h1 className="empty-hero-title">
+            Hey, I'm <span className="hero-highlight-mint">kriya</span>. How can I help you today?
+          </h1>
+
+          {/* Reference Suggestion Pills Horizontal Row */}
+          <div className="hero-suggestion-pills-row">
+            {SUGGESTION_PILLS.map((pill, idx) => {
+              const Icon = pill.icon;
+              return (
+                <button
+                  key={idx}
+                  type="button"
+                  className="hero-suggestion-pill"
+                  onClick={() => onSelectPrompt && onSelectPrompt(pill.prompt)}
+                  title={pill.prompt}
+                >
+                  <Icon size={14} className="suggestion-pill-icon" />
+                  <span>{pill.label}</span>
+                </button>
+              );
+            })}
+          </div>
         </div>
       </div>
     );
   }
 
-  // Check if there is an active streaming message
   const hasActiveStreamingMessage = messages.some((m) => m.isStreaming);
 
   return (
-    <div className="message-list-container">
+    <div className="message-list-container" ref={containerRef}>
       <div className="message-list-content">
         {messages.map((msg, index) => {
           const isUser = msg.role === 'user';
@@ -202,165 +222,185 @@ export default function MessageList({ messages = [], isLoading = false }: Messag
               className={`message-wrapper ${isUser ? 'user-message' : 'ai-message'} ${isStreaming ? 'streaming-message' : ''}`}
             >
               <div className="message-avatar">
-                {isUser ? <User size={16} /> : <Bot size={16} />}
+                {isUser ? <User size={15} /> : <Flame size={15} />}
               </div>
               <div className="message-body">
                 <div className="message-sender">
                   {isUser ? 'You' : 'KRIYA'}
                 </div>
 
-                {/* 1. Live Inline Thinking / Reasoning Box */}
-                {(hasReasoning || isThinkingNow) && (
-                  <div className={`chat-reasoning-box ${reasoningOpen ? 'expanded' : 'collapsed'} ${isThinkingNow ? 'streaming' : ''}`}>
-                    <button
-                      type="button"
-                      className="chat-reasoning-toggle"
+                {/* 1. Live Inline Thinking / Reasoning Drawer */}
+                {hasReasoning && (
+                  <div className={`thought-container ${isThinkingNow ? 'thinking-active' : 'thinking-complete'} ${reasoningOpen ? 'is-expanded' : 'is-collapsed'}`}>
+                    <button 
+                      type="button" 
+                      className="thought-header"
                       onClick={() => toggleReasoning(msg.id)}
-                      title={reasoningOpen ? 'Collapse thoughts' : 'Expand thoughts'}
+                      aria-expanded={reasoningOpen}
+                      aria-controls={`thought-${msg.id}`}
                     >
-                      <BrainCircuit size={14} className={`reasoning-mini-icon ${isThinkingNow ? 'icon-pulse' : ''}`} />
-                      <span className="reasoning-toggle-title">
-                        {isThinkingNow ? 'Thinking process...' : 'Thought process'}
-                      </span>
-                      {isThinkingNow && <span className="reasoning-live-dot" aria-hidden="true" />}
-                      <span className="reasoning-chevron" aria-hidden="true">
-                        {reasoningOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-                      </span>
+                      <div className="thought-header-left">
+                        {isThinkingNow ? (
+                          <Loader2 size={13} className="spinner-icon thought-status-icon" />
+                        ) : (
+                          <BrainCircuit size={13} className="thought-status-icon" />
+                        )}
+                        <span className="thought-label">
+                          {isThinkingNow ? 'Thinking process...' : 'Reasoning process'}
+                        </span>
+                      </div>
+                      <div className="thought-header-right">
+                        <span className="thought-expand-hint">
+                          {reasoningOpen ? 'Hide' : 'Show details'}
+                        </span>
+                        <ChevronDown 
+                          size={13} 
+                          className={`thought-chevron-icon ${reasoningOpen ? 'is-expanded' : ''}`} 
+                        />
+                      </div>
                     </button>
 
-                    {reasoningOpen && (
-                      <div className="chat-reasoning-body">
-                        <div className="chat-reasoning-text">
-                          {msg.reasoning}
+                    <div className={`thought-drawer-wrapper ${reasoningOpen ? 'expanded' : ''}`}>
+                      <div className="thought-drawer-inner">
+                        <div 
+                          id={`thought-${msg.id}`} 
+                          className="thought-content"
+                          ref={isThinkingNow ? activeThoughtRef : undefined}
+                        >
+                          <MarkdownRenderer content={msg.reasoning!} />
                           {isThinkingNow && (
-                            <span className="streaming-cursor reasoning-cursor" aria-hidden="true" />
+                            <span className="streaming-cursor" aria-hidden="true" />
                           )}
+                          <div 
+                            ref={isThinkingNow ? thoughtEndRef : undefined} 
+                            style={{ height: 1, flexShrink: 0 }} 
+                            aria-hidden="true" 
+                          />
                         </div>
                       </div>
-                    )}
+                    </div>
                   </div>
                 )}
 
-                {/* 2. Main Assistant Response Text / Error Card */}
-                {msg.isError ? (
-                  <div id={`rendered-message-${msg.id}`} className="message-error-card" role="alert">
-                    <div className="error-card-header">
-                      <div className="error-card-icon-wrap">
-                        <AlertTriangle size={18} className="error-card-icon" />
-                      </div>
-                      <div className="error-card-content">
-                        <h4 className="error-card-title">
-                          {msg.errorInfo?.title || 'Unable to Complete Request'}
-                        </h4>
-                        <p className="error-card-desc">
-                          {msg.errorInfo?.message || 'An unexpected issue occurred while communicating with the AI service.'}
-                        </p>
-                      </div>
-                    </div>
-
-                    {msg.errorInfo?.suggestion && (
-                      <div className="error-card-suggestion">
-                        <span className="suggestion-icon" aria-hidden="true">💡</span>
-                        <span className="suggestion-text">{msg.errorInfo.suggestion}</span>
-                      </div>
-                    )}
-
-                    {msg.errorInfo?.technicalDetail && (
-                      <div className="error-card-details-section">
-                        <button
-                          type="button"
-                          className="error-details-toggle-btn"
-                          onClick={() => toggleErrorDetails(msg.id)}
-                          aria-expanded={Boolean(expandedErrorDetails[msg.id])}
-                        >
-                          <span>{expandedErrorDetails[msg.id] ? 'Hide technical details' : 'Show technical details'}</span>
-                          {expandedErrorDetails[msg.id] ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
-                        </button>
-                        {expandedErrorDetails[msg.id] && (
-                          <div className="error-technical-box">
-                            <code>{msg.errorInfo.technicalDetail}</code>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                ) : hasContent ? (
-                  <div id={`rendered-message-${msg.id}`} className="message-text">
-                    <MarkdownRenderer content={msg.content || ''} />
+                {/* 2. Primary Markdown Response */}
+                {hasContent ? (
+                  <div className="message-text">
+                    <MarkdownRenderer content={msg.content!} />
                     {isStreaming && !isThinkingNow && (
                       <span className="streaming-cursor" aria-hidden="true" />
                     )}
                   </div>
-                ) : isStreaming && !isThinkingNow ? (
-                  <div className="message-text thinking-indicator">
-                    <Loader2 size={15} className="spinner-icon" />
-                    <span>Typing response...</span>
-                  </div>
-                ) : null}
+                ) : (
+                  isStreaming && !hasReasoning && (
+                    <div className="generating-indicator">
+                      <Loader2 size={14} className="spinner-icon" />
+                      <span>Synthesizing sovereign response...</span>
+                    </div>
+                  )
+                )}
 
-                {/* 3. Assistant Response Metadata & Copy Button */}
-                {!isUser && (hasContent || msg.isError) && !isStreaming && (
-                  <div className="message-meta-footer">
-                    <div className="message-meta-stats">
-                      {msg.isError ? (
-                        <span className="meta-stat-badge error-stat">
-                          <AlertTriangle size={11} className="meta-stat-icon" />
-                          <span>Service Notice</span>
-                        </span>
+                {/* User Message Action Footer */}
+                {isUser && hasContent && (
+                  <div className="user-message-actions">
+                    <button
+                      type="button"
+                      className={`message-action-copy-btn user-copy-btn ${copiedId === msg.id ? 'copied' : ''}`}
+                      onClick={() => handleCopy(msg.id, msg.content)}
+                      title="Copy message"
+                      aria-label="Copy message"
+                    >
+                      {copiedId === msg.id ? (
+                        <>
+                          <Check size={11} />
+                          <span>Copied</span>
+                        </>
                       ) : (
                         <>
-                          {/* Model Used */}
-                          <span 
-                            className="meta-stat-badge model-stat" 
-                            title={`Model: ${msg.meta?.model || 'qwen'}`}
-                          >
-                            <Cpu size={11} className="meta-stat-icon" />
-                            <span>{formatModelName(msg.meta?.model || 'qwen')}</span>
-                          </span>
-
-                          {/* Tokens Used */}
-                          <span 
-                            className="meta-stat-badge tokens-stat" 
-                            title={
-                              msg.meta?.promptTokens
-                                ? `${msg.meta.promptTokens} prompt + ${msg.meta.completionTokens} completion`
-                                : 'Tokens used'
-                            }
-                          >
-                            <Zap size={11} className="meta-stat-icon" />
-                            <span>
-                              {msg.meta?.tokens !== undefined
-                                ? `${msg.meta.tokens} tokens`
-                                : '240 tokens'}
-                            </span>
-                          </span>
-
-                          {/* Time Taken */}
-                          <span 
-                            className="meta-stat-badge time-stat" 
-                            title="Time taken for response generation"
-                          >
-                            <Clock size={11} className="meta-stat-icon" />
-                            <span>
-                              {msg.meta?.durationMs !== undefined
-                                ? `${(msg.meta.durationMs / 1000).toFixed(2)}s`
-                                : '0.85s'}
-                            </span>
-                          </span>
+                          <Copy size={11} />
+                          <span>Copy</span>
                         </>
+                      )}
+                    </button>
+                  </div>
+                )}
+
+                {/* 3. Structured Error Card */}
+                {msg.isError && msg.errorInfo && (
+                  <div className="message-error-card">
+                    <div className="error-card-header">
+                      <AlertTriangle size={18} className="error-card-icon" />
+                      <div className="error-card-title-group">
+                        <span className="error-card-title">{msg.errorInfo.title}</span>
+                        {msg.errorInfo.statusCode && (
+                          <span className="error-status-badge">HTTP {msg.errorInfo.statusCode}</span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="error-card-body">
+                      <p className="error-message-text">{msg.errorInfo.message}</p>
+                      {msg.errorInfo.fixSuggestion && (
+                        <div className="error-fix-section">
+                          <span className="error-fix-label">Recommended Action:</span>
+                          <span className="error-fix-text">{msg.errorInfo.fixSuggestion}</span>
+                        </div>
+                      )}
+                    </div>
+                    <div className="error-card-footer">
+                      <button
+                        type="button"
+                        className={`message-action-copy-btn ${copiedId === msg.id ? 'copied' : ''}`}
+                        onClick={() => handleCopy(msg.id, `${msg.errorInfo?.title || 'Error'}: ${msg.errorInfo?.message || ''}\n${msg.errorInfo?.fixSuggestion || ''}`.trim())}
+                        title="Copy error details"
+                      >
+                        {copiedId === msg.id ? (
+                          <>
+                            <Check size={12} />
+                            <span>Copied</span>
+                          </>
+                        ) : (
+                          <>
+                            <Copy size={12} />
+                            <span>Copy Error</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* 4. Metadata Footer (Tokens, Duration, Copy Action) */}
+                {!isUser && !isStreaming && (hasContent || hasReasoning) && (
+                  <div className="message-meta-footer">
+                    <div className="message-meta-stats">
+                      {msg.meta?.model && (
+                        <span className="meta-stat-badge model-stat" title="Model Identifier">
+                          <Cpu size={11} className="meta-stat-icon" />
+                          <span>{msg.meta.model}</span>
+                        </span>
+                      )}
+                      {msg.meta?.tokens !== undefined && msg.meta.tokens > 0 && (
+                        <span className="meta-stat-badge tokens-stat" title="Tokens Generated">
+                          <Terminal size={11} className="meta-stat-icon" />
+                          <span>{msg.meta.tokens} tokens</span>
+                        </span>
+                      )}
+                      {msg.meta?.durationMs !== undefined && msg.meta.durationMs > 0 && (
+                        <span className="meta-stat-badge time-stat" title="Inference Latency">
+                          <Clock size={11} className="meta-stat-icon" />
+                          <span>{(msg.meta.durationMs / 1000).toFixed(2)}s</span>
+                        </span>
                       )}
                     </div>
 
-                    {/* 1-Click Copy Button */}
                     <button
                       type="button"
-                      className={`message-action-copy-btn ${copiedMsgId === msg.id ? 'copied' : ''}`}
-                      onClick={() => handleCopyMessage(msg.id, msg.content)}
-                      title="Copy response to clipboard"
+                      className={`message-action-copy-btn ${copiedId === msg.id ? 'copied' : ''}`}
+                      onClick={() => handleCopy(msg.id, msg.content || msg.rawContent || msg.reasoning || '')}
+                      title="Copy response markdown"
                     >
-                      {copiedMsgId === msg.id ? (
+                      {copiedId === msg.id ? (
                         <>
-                          <Check size={12} className="copy-check-icon" />
+                          <Check size={12} />
                           <span>Copied</span>
                         </>
                       ) : (
@@ -377,22 +417,23 @@ export default function MessageList({ messages = [], isLoading = false }: Messag
           );
         })}
 
+        {/* Global Loading Bar when awaiting first token */}
         {isLoading && !hasActiveStreamingMessage && (
-          <div className="message-wrapper ai-message loading-message">
+          <div className="message-wrapper ai-message loading-placeholder">
             <div className="message-avatar">
-              <Bot size={16} />
+              <Flame size={15} />
             </div>
             <div className="message-body">
-              <div className="message-sender">KRIYA</div>
-              <div className="message-text loading-indicator">
-                <Loader2 size={16} className="spinner-icon" />
-                <span>Generating response...</span>
+              <div className="generating-indicator">
+                <Loader2 size={14} className="spinner-icon" />
+                <span>Accessing on-premise model runner...</span>
               </div>
             </div>
           </div>
         )}
 
-        <div ref={bottomRef} />
+        {/* Bottom Anchor for Auto-scroll */}
+        <div ref={messagesEndRef} style={{ height: 1, flexShrink: 0 }} aria-hidden="true" />
       </div>
     </div>
   );
