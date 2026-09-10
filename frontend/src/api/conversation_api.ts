@@ -11,7 +11,8 @@ import {
 } from '../schemas/conversation';
 
 // Backend endpoint configured strictly from .env via Vite
-const BACKEND_URL: string = import.meta.env.VITE_BACKEND_URL;
+const RAW_BACKEND_URL: string = import.meta.env.VITE_BACKEND_URL || '';
+const BACKEND_URL: string = RAW_BACKEND_URL.replace(/\/+$/, '');
 
 /**
  * Creates a new conversation in PostgreSQL.

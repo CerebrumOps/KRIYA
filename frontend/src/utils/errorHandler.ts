@@ -140,18 +140,38 @@ export function parseErrorInfo(error: any): ErrorInfo {
     };
   }
 
-  // 5. Model Not Found (404)
+  // 5. Backend Configuration Missing
+  if (
+    searchPool.includes('backend url is not configured') ||
+    searchPool.includes('vite_backend_url')
+  ) {
+    return {
+      type: 'generic_error',
+      title: 'Backend URL Not Configured',
+      message: 'The frontend does not know where the backend server is running.',
+      suggestion: 'Set VITE_BACKEND_URL=http://<BACKEND_IP>:5000 in your .env file and restart Vite.',
+      status: 404,
+      technicalDetail: rawDetail || rawMessage,
+    };
+  }
+
+  // 5b. Model or Endpoint Not Found (404)
   if (
     status === 404 ||
     searchPool.includes('model not found') ||
     searchPool.includes('does not exist') ||
     searchPool.includes('not found')
   ) {
+    const isModelSpecific = searchPool.includes('model');
     return {
       type: 'not_found',
-      title: 'Model Not Found',
-      message: 'The requested AI model could not be found on the server.',
-      suggestion: 'Please verify the model configuration or select another available model.',
+      title: isModelSpecific ? 'Model Not Found' : 'Backend Endpoint Not Found (404)',
+      message: isModelSpecific
+        ? 'The requested AI model could not be found on the server.'
+        : 'The backend endpoint was not found (404). Please ensure VITE_BACKEND_URL in .env points to port 5000 (not port 3000) with no trailing slash.',
+      suggestion: isModelSpecific
+        ? 'Please verify the model configuration or select another available model.'
+        : 'Verify VITE_BACKEND_URL=http://<BACKEND_IP>:5000 in .env and restart Vite on the frontend host.',
       status: 404,
       technicalDetail: rawDetail || rawMessage,
     };

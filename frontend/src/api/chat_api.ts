@@ -6,7 +6,8 @@
 import { WebChatRequest, WebChatResponse } from '../schemas/chat';
 
 // Backend endpoint configured strictly from .env via Vite
-const BACKEND_URL: string = import.meta.env.VITE_BACKEND_URL;
+const RAW_BACKEND_URL: string = import.meta.env.VITE_BACKEND_URL || '';
+const BACKEND_URL: string = RAW_BACKEND_URL.replace(/\/+$/, '');
 
 /**
  * Sends a chat request and streams back tokens in real-time.
@@ -24,7 +25,18 @@ export async function streamChatMessage(
   onError?: (err: Error) => void,
   backendUrl: string = BACKEND_URL
 ): Promise<void> {
-  const url = `${backendUrl}/api/chat/stream`;
+  const base = (backendUrl || BACKEND_URL).replace(/\/+$/, '');
+  if (!base) {
+    const configError = new Error(
+      'Backend URL is not configured. Please set VITE_BACKEND_URL=http://<BACKEND_IP>:5000 in your .env file and restart Vite.'
+    );
+    if (onError) {
+      onError(configError);
+      return;
+    }
+    throw configError;
+  }
+  const url = `${base}/api/chat/stream`;
 
   try {
     const response = await fetch(url, {
@@ -36,7 +48,16 @@ export async function streamChatMessage(
     });
 
     if (!response.ok) {
-      throw new Error(`Server returned error status ${response.status}`);
+      let detail = '';
+      try {
+        const body = await response.json();
+        detail = body.detail ? String(body.detail) : JSON.stringify(body);
+      } catch {
+        detail = await response.text().catch(() => '');
+      }
+      throw new Error(
+        `Server returned error status ${response.status} from ${url}${detail ? `: ${detail}` : ''}`
+      );
     }
 
     if (!response.body) {
@@ -78,7 +99,13 @@ export async function sendChatMessage(
   request: WebChatRequest,
   backendUrl: string = BACKEND_URL
 ): Promise<WebChatResponse> {
-  const url = `${backendUrl}/api/chat`;
+  const base = (backendUrl || BACKEND_URL).replace(/\/+$/, '');
+  if (!base) {
+    throw new Error(
+      'Backend URL is not configured. Please set VITE_BACKEND_URL=http://<BACKEND_IP>:5000 in your .env file and restart Vite.'
+    );
+  }
+  const url = `${base}/api/chat`;
 
   const response = await fetch(url, {
     method: 'POST',
@@ -89,7 +116,16 @@ export async function sendChatMessage(
   });
 
   if (!response.ok) {
-    throw new Error(`Server returned error status ${response.status}`);
+    let detail = '';
+    try {
+      const body = await response.json();
+      detail = body.detail ? String(body.detail) : JSON.stringify(body);
+    } catch {
+      detail = await response.text().catch(() => '');
+    }
+    throw new Error(
+      `Server returned error status ${response.status} from ${url}${detail ? `: ${detail}` : ''}`
+    );
   }
 
   const data: WebChatResponse = await response.json();
