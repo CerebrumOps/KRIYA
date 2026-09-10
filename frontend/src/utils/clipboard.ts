@@ -1,5 +1,5 @@
 /**
- * Sovereign Robust Clipboard Utility
+ * Robust Clipboard Utility
  * Handles modern navigator.clipboard.writeText with graceful fallback to
  * document.execCommand('copy') for non-secure contexts, iframe environments,
  * and background focus states.

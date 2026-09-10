@@ -294,7 +294,7 @@ export default function MessageList({
                   isStreaming && !hasReasoning && (
                     <div className="generating-indicator">
                       <Loader2 size={14} className="spinner-icon" />
-                      <span>Synthesizing sovereign response...</span>
+                      <span>Synthesizing response...</span>
                     </div>
                   )
                 )}
