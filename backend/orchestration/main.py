@@ -12,7 +12,7 @@
 
 import sys
 from pathlib import Path
-from typing import Generator
+from typing import Any, Dict, Generator
 
 # Ensure project root is in sys.path
 root_dir = Path(__file__).resolve().parent.parent.parent
@@ -39,10 +39,10 @@ def stream_kriya_chat(chat_request: WebChatRequest) -> Generator[str, None, None
     )
 
 
-def generate_kriya_chat(chat_request: WebChatRequest) -> str:
+def generate_kriya_chat(chat_request: WebChatRequest) -> Dict[str, Any]:
     """
     Called by backend/api/webchat_routes.py for non-streaming requests.
-    Returns the complete text output after all multi-step tool calls finish.
+    Returns the complete text output and generation metadata (tokens, time).
     """
     return run_agent_loop(
         user_message=chat_request.user_message,

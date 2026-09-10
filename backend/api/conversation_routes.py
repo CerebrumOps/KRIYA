@@ -53,11 +53,12 @@ def parse_exchange_for_titling(user_message: str, raw_assistant_response: str) -
         else:
             reasoning_text = "Direct execution without extended thinking steps."
 
-    # 2. Extract clean response by stripping tool calls, tool results, and think tags
+    # 2. Extract clean response by stripping tool calls, tool results, think tags, and response metadata
     cleaned = re.sub(r'<tool_call[\s\S]*?</tool_call>', '', raw_assistant_response)
     cleaned = re.sub(r'<tool_result[\s\S]*?</tool_result>', '', cleaned)
     cleaned = re.sub(r'<think>[\s\S]*?</think>', '', cleaned)
-    cleaned = re.sub(r'</?(tool_call|tool_result|think)[^>]*>', '', cleaned)
+    cleaned = re.sub(r'<response_metadata[\s\S]*?</response_metadata>', '', cleaned)
+    cleaned = re.sub(r'</?(tool_call|tool_result|think|response_metadata)[^>]*>', '', cleaned)
     response_text = cleaned.strip()
 
     if not response_text:

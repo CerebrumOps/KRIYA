@@ -37,11 +37,21 @@ def chat_non_stream(request: WebChatRequest):
     Non-streaming endpoint returning full response in JSON format.
     """
     try:
-        reply = generate_kriya_chat(request)
+        result = generate_kriya_chat(request)
+        reply = result["reply"] if isinstance(result, dict) else str(result)
+        tokens_gen = result.get("tokens_generated") if isinstance(result, dict) else None
+        time_ms = result.get("time_taken_ms") if isinstance(result, dict) else None
+        speed = result.get("speed_tokens_per_second") if isinstance(result, dict) else None
+        prompt_tokens = result.get("prompt_tokens") if isinstance(result, dict) else None
+
         return WebChatResponse(
             reply=reply,
             model_used=request.model or "default",
-            status="success"
+            status="success",
+            tokens_generated=tokens_gen,
+            time_taken_ms=time_ms,
+            speed_tokens_per_second=speed,
+            prompt_tokens=prompt_tokens
         )
     except Exception as e:
         raise HTTPException(

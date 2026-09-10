@@ -9,6 +9,8 @@
 # ==============================================================================
 
 import json
+import re
+import time
 from typing import Any, Dict, Generator, List, Optional
 from openai import OpenAI
 
@@ -78,15 +80,23 @@ def run_agent_loop_stream(
             "chat_template_kwargs": {"enable_thinking": True}
         }
 
+    total_predicted_tokens = 0
+    total_predicted_ms = 0.0
+    total_prompt_tokens = 0
+    latest_speed = None
+
     # Multi-step loop (runs until model finishes or reaches max_steps)
     for step in range(max_steps):
-        # Call model with stream=True so tokens stream in real time
+        step_start_time = time.perf_counter()
+
+        # Call model with stream=True and stream_options to capture usage
         stream_response = client.chat.completions.create(
             model=model or "default",
             messages=messages,
             tools=TOOLS_SCHEMA,
             temperature=temperature,
             stream=True,
+            stream_options={"include_usage": True},
             extra_body=extra_body if extra_body else None
         )
 
@@ -95,7 +105,34 @@ def run_agent_loop_stream(
         in_reasoning = False
         tool_calls_map = {}  # index -> {id, name, arguments}
 
+        step_predicted_tokens = 0
+        step_predicted_ms = None
+        step_speed = None
+        step_prompt_tokens = 0
+        streamed_token_count = 0
+
         for chunk in stream_response:
+            # Check llama.cpp timings in model_extra
+            extra = getattr(chunk, "model_extra", {}) or {}
+            timings = extra.get("timings", {}) or {}
+            if timings:
+                if timings.get("predicted_n") is not None:
+                    step_predicted_tokens = timings["predicted_n"]
+                if timings.get("predicted_ms") is not None:
+                    step_predicted_ms = timings["predicted_ms"]
+                if timings.get("predicted_per_second") is not None:
+                    step_speed = timings["predicted_per_second"]
+                if timings.get("prompt_n") is not None:
+                    step_prompt_tokens = timings["prompt_n"]
+
+            # Also check chunk.usage if provided by OpenAI-compatible server
+            usage = getattr(chunk, "usage", None)
+            if usage:
+                if getattr(usage, "completion_tokens", None) is not None:
+                    step_predicted_tokens = usage.completion_tokens
+                if getattr(usage, "prompt_tokens", None) is not None:
+                    step_prompt_tokens = usage.prompt_tokens
+
             if not chunk.choices:
                 continue
 
@@ -109,6 +146,7 @@ def run_agent_loop_stream(
                     in_reasoning = True
                     yield "<think>\n"
                 accumulated_reasoning += reasoning_chunk
+                streamed_token_count += 1
                 yield reasoning_chunk
 
             # 2. Stream standard content tokens (yielded token by token immediately!)
@@ -120,6 +158,7 @@ def run_agent_loop_stream(
                     yield "\n</think>\n\n"
 
                 accumulated_content += content_chunk
+                streamed_token_count += 1
                 yield content_chunk
 
             # 3. Accumulate tool call deltas if model is invoking a tool
@@ -140,10 +179,31 @@ def run_agent_loop_stream(
                         if tc.function.arguments:
                             tool_calls_map[idx]["arguments"] += tc.function.arguments
 
+        step_elapsed_ms = (time.perf_counter() - step_start_time) * 1000
+
         # If stream finished while still in reasoning mode, close </think> tag
         if in_reasoning:
             in_reasoning = False
             yield "\n</think>\n\n"
+
+        # Tally tokens and timings for this step
+        if step_predicted_tokens > 0:
+            total_predicted_tokens += step_predicted_tokens
+        else:
+            total_predicted_tokens += streamed_token_count
+
+        if step_predicted_ms is not None:
+            total_predicted_ms += step_predicted_ms
+        else:
+            total_predicted_ms += step_elapsed_ms
+
+        if step_prompt_tokens > 0:
+            total_prompt_tokens += step_prompt_tokens
+
+        if step_speed is not None:
+            latest_speed = step_speed
+        elif total_predicted_ms > 0 and total_predicted_tokens > 0:
+            latest_speed = total_predicted_tokens / (total_predicted_ms / 1000.0)
 
         # Check if any tools were called
         if tool_calls_map:
@@ -195,6 +255,15 @@ def run_agent_loop_stream(
             # No tool calls: tokens were streamed directly to frontend in real time!
             break
 
+    # Emit exact llamacpp metadata block at the conclusion of the stream
+    metadata_payload = json.dumps({
+        "tokens_generated": total_predicted_tokens,
+        "time_taken_ms": round(total_predicted_ms, 2),
+        "prompt_tokens": total_prompt_tokens,
+        "speed_tokens_per_second": round(latest_speed, 2) if latest_speed else None
+    })
+    yield f"\n<response_metadata>{metadata_payload}</response_metadata>\n"
+
 
 def run_agent_loop(
     user_message: str,
@@ -203,11 +272,13 @@ def run_agent_loop(
     model: str = "default",
     temperature: float = 0.2,
     max_steps: int = 5
-) -> str:
+) -> Dict[str, Any]:
     """
-    Non-streaming agent loop returning complete aggregated output string.
+    Non-streaming agent loop returning complete aggregated output dictionary with
+    exact tokens generated and time taken from llamacpp.
     """
     chunks = []
+    metadata = {}
     for chunk in run_agent_loop_stream(
         user_message=user_message,
         history=history,
@@ -217,4 +288,24 @@ def run_agent_loop(
         max_steps=max_steps
     ):
         chunks.append(chunk)
-    return "".join(chunks)
+
+    full_output = "".join(chunks)
+
+    # Extract metadata block if present
+    meta_match = re.search(r'<response_metadata>([\s\S]*?)</response_metadata>', full_output)
+    if meta_match:
+        try:
+            metadata = json.loads(meta_match.group(1))
+        except Exception:
+            metadata = {}
+
+    clean_reply = re.sub(r'<response_metadata>[\s\S]*?</response_metadata>', '', full_output).strip()
+
+    return {
+        "reply": clean_reply,
+        "tokens_generated": metadata.get("tokens_generated"),
+        "time_taken_ms": metadata.get("time_taken_ms"),
+        "speed_tokens_per_second": metadata.get("speed_tokens_per_second"),
+        "prompt_tokens": metadata.get("prompt_tokens")
+    }
+
