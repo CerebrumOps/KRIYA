@@ -22,4 +22,8 @@ export interface WebChatResponse {
   reply: string;
   model_used: string;
   status: string;
+  tokens_generated?: number;
+  time_taken_ms?: number;
+  speed_tokens_per_second?: number;
+  prompt_tokens?: number;
 }

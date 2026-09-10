@@ -1,0 +1,465 @@
+/* ==========================================================================
+   Bottom Tool Execution Collapsible Dropdown Panel
+   ========================================================================== */
+
+.bottom-tool-panel {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--surface);
+  border-top: 1px solid var(--border-subtle);
+  overflow: hidden;
+  flex-shrink: 0;
+  z-index: 30;
+  box-sizing: border-box;
+  /* Smooth hardware-accelerated transition */
+  transition: 
+    height 0.35s cubic-bezier(0.16, 1, 0.3, 1),
+    max-height 0.35s cubic-bezier(0.16, 1, 0.3, 1),
+    border-color 0.25s ease,
+    box-shadow 0.3s ease;
+}
+
+/* State 1: Completely hidden (No tools executed & not running) */
+.bottom-tool-panel.panel-hidden {
+  height: 0 !important;
+  min-height: 0 !important;
+  max-height: 0 !important;
+  border-top: none !important;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* State 2: Collapsed dropdown bar (Tools available, but drawer minimized) */
+.bottom-tool-panel.panel-collapsed {
+  height: 42px;
+  min-height: 42px;
+  max-height: 42px;
+  cursor: pointer;
+  background-color: #121215;
+}
+
+.bottom-tool-panel.panel-collapsed:hover {
+  background-color: #17181c;
+  border-top-color: rgba(203, 57, 208, 0.35);
+}
+
+/* State 3: Fully expanded */
+.bottom-tool-panel.panel-expanded {
+  height: clamp(280px, 34vh, 420px);
+  min-height: 280px;
+  max-height: 420px;
+  box-shadow: 0 -8px 28px rgba(0, 0, 0, 0.55);
+}
+
+/* State 4: Running glow pulse */
+.bottom-tool-panel.panel-running {
+  border-top-color: rgba(245, 158, 11, 0.55);
+  box-shadow: 0 -8px 30px rgba(245, 158, 11, 0.15), 0 -2px 10px rgba(0, 0, 0, 0.5);
+}
+
+/* ==========================================================================
+   Header Bar (Interactive Dropdown Trigger)
+   ========================================================================== */
+
+.bottom-tool-header {
+  height: 42px;
+  min-height: 42px;
+  padding: 0 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border-subtle);
+  user-select: none;
+  background: rgba(255, 255, 255, 0.015);
+  flex-shrink: 0;
+  transition: background-color var(--transition-fast);
+}
+
+.bottom-tool-panel.panel-collapsed .bottom-tool-header {
+  border-bottom: none;
+}
+
+.bottom-tool-header:hover {
+  background-color: rgba(255, 255, 255, 0.035);
+}
+
+.bottom-tool-header-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.tool-icon-circle {
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-xs);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-subtle);
+  transition: all var(--transition-fast);
+}
+
+.tool-green {
+  color: var(--badge-tool);
+}
+
+.tool-amber {
+  color: #f59e0b;
+}
+
+.icon-active {
+  background-color: var(--badge-tool-bg);
+  border-color: rgba(7, 117, 48, 0.4);
+}
+
+.icon-pulse {
+  background-color: rgba(245, 158, 11, 0.15);
+  border-color: rgba(245, 158, 11, 0.45);
+  animation: amberGlow 1.8s infinite ease-in-out;
+}
+
+@keyframes amberGlow {
+  0%, 100% {
+    box-shadow: 0 0 4px rgba(245, 158, 11, 0.25);
+  }
+  50% {
+    box-shadow: 0 0 12px rgba(245, 158, 11, 0.6);
+  }
+}
+
+.bottom-tool-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  letter-spacing: 0.01em;
+}
+
+.bottom-tool-count-badge {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 1px 7px;
+  border-radius: var(--radius-full);
+  background-color: var(--surface-2);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-subtle);
+}
+
+.bottom-tool-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+}
+
+.pill-running {
+  background-color: rgba(245, 158, 11, 0.15);
+  color: #f59e0b;
+  border: 1px solid rgba(245, 158, 11, 0.35);
+}
+
+.pill-completed {
+  background-color: var(--badge-tool-bg);
+  color: var(--badge-tool);
+  border: 1px solid rgba(7, 117, 48, 0.35);
+}
+
+.pill-failed {
+  background-color: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.35);
+}
+
+.bottom-tool-header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.bottom-tool-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  transition: all var(--transition-fast);
+}
+
+.bottom-tool-toggle-btn:hover {
+  color: var(--text-primary);
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+.toggle-label {
+  font-size: 11.5px;
+}
+
+/* ==========================================================================
+   Expandable Body & Tool List
+   ========================================================================== */
+
+.bottom-tool-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 14px 18px;
+  display: flex;
+  flex-direction: column;
+  background: #0d0c10;
+}
+
+/* Empty State */
+.bottom-tool-empty-state {
+  margin: auto;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 20px 24px;
+  border: 1px dashed var(--border-subtle);
+  border-radius: var(--radius-md);
+  max-width: 520px;
+  background-color: rgba(255, 255, 255, 0.01);
+}
+
+.empty-tool-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-md);
+  background-color: var(--badge-tool-bg);
+  color: var(--badge-tool);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border: 1px solid rgba(7, 117, 48, 0.3);
+}
+
+.empty-tool-text-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.empty-tool-title {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.empty-tool-desc {
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.45;
+}
+
+/* Tool List */
+.bottom-tool-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.bottom-tool-card {
+  background-color: var(--surface-2);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.bottom-tool-card.card-running {
+  border-color: rgba(245, 158, 11, 0.45);
+  background: linear-gradient(180deg, rgba(245, 158, 11, 0.06) 0%, var(--surface-2) 100%);
+  box-shadow: 0 0 16px rgba(245, 158, 11, 0.1);
+}
+
+.bottom-tool-card.card-failed {
+  border-color: rgba(239, 68, 68, 0.35);
+}
+
+/* Card Header */
+.bottom-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.bottom-card-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.card-index {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+.card-term-icon {
+  color: var(--badge-tool);
+}
+
+.card-tool-name {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-weight: 600;
+  font-size: 12.5px;
+  color: var(--white);
+}
+
+.bottom-card-meta-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.card-meta-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10.5px;
+  font-family: monospace;
+  color: var(--text-muted);
+  background: rgba(255, 255, 255, 0.04);
+  padding: 1.5px 6px;
+  border-radius: var(--radius-xs);
+  border: 1px solid var(--border-subtle);
+}
+
+.cwd-pill {
+  color: var(--purple-bright);
+}
+
+.card-status-badge {
+  font-size: 10.5px;
+  padding: 2px 7px;
+  border-radius: var(--radius-xs);
+  text-transform: uppercase;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Card Side-by-Side Grid */
+.bottom-card-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+@media (max-width: 860px) {
+  .bottom-card-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.bottom-block-container {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.bottom-block-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.bottom-block-title {
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.bottom-copy-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px;
+  font-size: 10px;
+  color: var(--text-muted);
+  background: transparent;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-xs);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.bottom-copy-btn:hover {
+  color: var(--text-primary);
+  border-color: var(--border);
+  background-color: rgba(255, 255, 255, 0.06);
+}
+
+.bottom-code-pre {
+  background-color: #08080a;
+  padding: 8px 10px;
+  border-radius: var(--radius-xs);
+  border: 1px solid var(--border-subtle);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+  overflow: auto;
+  max-height: 200px;
+  margin: 0;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.2) rgba(8, 8, 10, 0.6);
+}
+
+.bottom-code-pre::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+.bottom-code-pre::-webkit-scrollbar-track {
+  background: rgba(8, 8, 10, 0.6);
+  border-radius: var(--radius-full);
+}
+
+.bottom-code-pre::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: var(--radius-full);
+  transition: background var(--transition-fast);
+}
+
+.bottom-code-pre::-webkit-scrollbar-thumb:hover {
+  background: var(--purple-electric);
+}
+
+.bottom-code-pre::-webkit-scrollbar-corner {
+  background: rgba(8, 8, 10, 0.6);
+}
+
+.result-pre {
+  background-color: #060b08;
+  border-color: rgba(7, 117, 48, 0.25);
+  color: #4ade80;
+}
+
+.pre-error {
+  background-color: #0f0707;
+  border-color: rgba(239, 68, 68, 0.25);
+  color: #f87171;
+}
+
+/* Copy-Paste Safety: Disable animations for reduced motion preference */
+@media (prefers-reduced-motion: reduce) {
+  .bottom-tool-panel {
+    transition: none !important;
+  }
+}

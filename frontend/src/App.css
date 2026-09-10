@@ -1,0 +1,190 @@
+/* ==========================================================================
+   KRIYA Application Shell & Glassy Responsive Workspace
+   ========================================================================== */
+
+.app-container {
+  display: flex;
+  flex-direction: column;
+  width: 100vw;
+  height: 100vh;
+  background-color: var(--bg);
+  overflow: hidden;
+  position: relative;
+}
+
+/* ==========================================================================
+   Mobile / Tablet Frosted Glass Navigation Bar
+   ========================================================================== */
+
+.mobile-top-bar {
+  display: none;
+  align-items: center;
+  justify-content: space-between;
+  height: 54px;
+  padding: 0 18px;
+  background: rgba(14, 10, 22, 0.8);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--border);
+  box-shadow: var(--glass-inner-highlight);
+  flex-shrink: 0;
+  z-index: 30;
+  user-select: none;
+}
+
+.mobile-nav-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+  background: var(--glass-bg);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--border);
+  box-shadow: var(--glass-inner-highlight);
+  transition: all var(--transition-fast);
+  position: relative;
+}
+
+.mobile-nav-btn:hover {
+  color: var(--text-primary);
+  background: var(--glass-bg-hover);
+  border-color: rgba(168, 85, 247, 0.4);
+}
+
+.mobile-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.mobile-brand-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent-gradient);
+  box-shadow: 0 0 12px rgba(217, 70, 239, 0.6);
+}
+
+.mobile-brand-title {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  color: var(--text-primary);
+}
+
+.mobile-brand-badge {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: var(--magenta);
+  background: rgba(217, 70, 239, 0.12);
+  border: 1px solid rgba(217, 70, 239, 0.3);
+  padding: 2px 6px;
+  border-radius: var(--radius-full);
+}
+
+.mobile-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.mobile-tool-btn.running {
+  border-color: rgba(245, 158, 11, 0.5);
+  color: var(--amber);
+}
+
+.mobile-tool-badge {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: var(--amber);
+  box-shadow: 0 0 8px rgba(245, 158, 11, 0.8);
+  animation: pulse-badge 1.8s infinite ease-in-out;
+}
+
+@keyframes pulse-badge {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.3);
+    opacity: 0.6;
+  }
+}
+
+/* Backdrop for Mobile Sidebar Drawer */
+.mobile-sidebar-backdrop {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(8, 6, 13, 0.7);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  z-index: 40;
+  animation: fadeIn 0.2s ease-out;
+}
+
+/* ==========================================================================
+   Main Workspace Body (Multi-Column)
+   ========================================================================== */
+
+.app-workspace-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  position: relative;
+}
+
+/* Desktop Sidebar Wrapper */
+.sidebar-responsive-wrapper {
+  height: 100%;
+  display: flex;
+  flex-shrink: 0;
+  z-index: 20;
+}
+
+/* ==========================================================================
+   Responsive Breakpoints
+   ========================================================================== */
+
+/* Tablet & Mobile Screens (<= 1024px) */
+@media (max-width: 1024px) {
+  .mobile-top-bar {
+    display: flex;
+  }
+
+  .sidebar-responsive-wrapper {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: 280px;
+    z-index: 50;
+    transform: translateX(-100%);
+    transition: transform var(--transition-drawer);
+    box-shadow: var(--shadow-lg);
+  }
+
+  .sidebar-responsive-wrapper.sidebar-open {
+    transform: translateX(0);
+  }
+}
+
+/* Small Mobile Screens (<= 640px) */
+@media (max-width: 640px) {
+  .sidebar-responsive-wrapper {
+    width: 85vw;
+    max-width: 320px;
+  }
+}

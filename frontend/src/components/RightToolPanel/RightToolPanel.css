@@ -1,0 +1,599 @@
+/* ==========================================================================
+   Collapsible Right-Side Tool Execution Drawer
+   ========================================================================== */
+
+.right-tool-panel {
+  height: 100%;
+  background: rgba(14, 10, 22, 0.75);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-left: 1px solid var(--border);
+  box-shadow: var(--glass-inner-highlight);
+  display: flex;
+  overflow: hidden;
+  flex-shrink: 0;
+  z-index: 25;
+  box-sizing: border-box;
+  /* Smooth hardware-accelerated drawer transition */
+  transition: 
+    width 0.35s cubic-bezier(0.16, 1, 0.3, 1),
+    min-width 0.35s cubic-bezier(0.16, 1, 0.3, 1),
+    border-color 0.25s ease,
+    box-shadow 0.3s ease;
+}
+
+/* State 1: Completely hidden (no tools in conversation) */
+.right-tool-panel.right-panel-hidden {
+  width: 0 !important;
+  min-width: 0 !important;
+  max-width: 0 !important;
+  border-left: none !important;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* State 2: Collapsed to slim vertical right-side bar */
+.right-tool-panel.right-panel-collapsed {
+  width: 44px;
+  min-width: 44px;
+  max-width: 44px;
+  cursor: pointer;
+  background: rgba(14, 10, 22, 0.7);
+}
+
+.right-tool-panel.right-panel-collapsed:hover {
+  background: var(--glass-bg-hover);
+  border-left-color: rgba(168, 85, 247, 0.4);
+}
+
+.right-tool-panel.right-panel-collapsed:hover .rail-vertical-title {
+  color: var(--text-primary);
+}
+
+.right-tool-panel.right-panel-collapsed:hover .rail-toggle-btn {
+  color: var(--purple-electric);
+}
+
+/* State 3: Fully expanded */
+.right-tool-panel.right-panel-expanded {
+  width: clamp(330px, 28vw, 440px);
+  min-width: 330px;
+  max-width: 460px;
+  box-shadow: -8px 0 32px rgba(0, 0, 0, 0.65), var(--glass-inner-highlight);
+}
+
+/* State 4: Running glow pulse */
+.right-tool-panel.right-panel-running {
+  border-left-color: rgba(245, 158, 11, 0.55);
+  box-shadow: -8px 0 32px rgba(245, 158, 11, 0.15), -2px 0 10px rgba(0, 0, 0, 0.5);
+}
+
+/* ==========================================================================
+   A. Collapsed Rail View
+   ========================================================================== */
+
+.right-rail-bar {
+  width: 44px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 14px 0;
+  gap: 12px;
+  user-select: none;
+  background: rgba(255, 255, 255, 0.015);
+  flex-shrink: 0;
+  transition: background-color var(--transition-fast);
+}
+
+.right-panel-expanded .right-rail-bar {
+  display: none;
+}
+
+.rail-toggle-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-xs);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+  background: transparent;
+  transition: all var(--transition-fast);
+}
+
+.rail-icon-wrapper {
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-xs);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border-subtle);
+  transition: all var(--transition-fast);
+}
+
+.tool-green {
+  color: var(--badge-tool);
+}
+
+.tool-amber {
+  color: #f59e0b;
+}
+
+.rail-icon-active {
+  background-color: var(--badge-tool-bg);
+  border-color: rgba(7, 117, 48, 0.4);
+}
+
+.rail-icon-pulse {
+  background-color: rgba(245, 158, 11, 0.15);
+  border-color: rgba(245, 158, 11, 0.45);
+  animation: amberPulseGlow 1.8s infinite ease-in-out;
+}
+
+@keyframes amberPulseGlow {
+  0%, 100% {
+    box-shadow: 0 0 4px rgba(245, 158, 11, 0.25);
+  }
+  50% {
+    box-shadow: 0 0 12px rgba(245, 158, 11, 0.6);
+  }
+}
+
+.rail-count-badge {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: var(--radius-full);
+  background-color: var(--surface-2);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-subtle);
+}
+
+.rail-vertical-title {
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  margin: auto 0;
+  white-space: nowrap;
+  transition: color var(--transition-fast);
+}
+
+.rail-status-dot-wrap {
+  margin-top: auto;
+  padding-bottom: 4px;
+}
+
+.rail-dot {
+  display: block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+}
+
+.dot-running {
+  background-color: #f59e0b;
+  box-shadow: 0 0 8px #f59e0b;
+  animation: dotPulse 1.2s infinite ease-in-out;
+}
+
+.dot-success {
+  background-color: var(--badge-tool);
+  box-shadow: 0 0 6px rgba(52, 211, 153, 0.4);
+}
+
+.dot-error {
+  background-color: #ef4444;
+  box-shadow: 0 0 6px rgba(239, 68, 68, 0.4);
+}
+
+@keyframes dotPulse {
+  0%, 100% {
+    transform: scale(0.9);
+    opacity: 0.7;
+  }
+  50% {
+    transform: scale(1.25);
+    opacity: 1;
+  }
+}
+
+/* ==========================================================================
+   B. Expanded Panel View
+   ========================================================================== */
+
+.right-panel-inner {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.right-panel-collapsed .right-panel-inner {
+  display: none;
+}
+
+/* Panel Header */
+.right-panel-header {
+  height: 52px;
+  padding: 0 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border-subtle);
+  background: rgba(255, 255, 255, 0.015);
+  flex-shrink: 0;
+}
+
+.panel-header-title-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.tool-header-icon-box {
+  width: 26px;
+  height: 26px;
+  border-radius: var(--radius-xs);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--badge-tool-bg);
+  border: 1px solid rgba(7, 117, 48, 0.4);
+}
+
+.header-icon-pulse {
+  background-color: rgba(245, 158, 11, 0.15);
+  border-color: rgba(245, 158, 11, 0.45);
+  animation: amberPulseGlow 1.8s infinite ease-in-out;
+}
+
+.panel-title-text-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.panel-title-heading {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.panel-count-badge {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 1.5px 6px;
+  border-radius: var(--radius-full);
+  background-color: var(--surface-2);
+  color: var(--text-muted);
+  border: 1px solid var(--border-subtle);
+}
+
+.panel-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: var(--radius-full);
+}
+
+.pill-running {
+  background-color: rgba(245, 158, 11, 0.15);
+  color: #f59e0b;
+  border: 1px solid rgba(245, 158, 11, 0.35);
+}
+
+.pill-completed {
+  background-color: var(--badge-tool-bg);
+  color: var(--badge-tool);
+  border: 1px solid rgba(7, 117, 48, 0.35);
+}
+
+.panel-collapse-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-xs);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+  background: transparent;
+  transition: all var(--transition-fast);
+}
+
+.panel-collapse-btn:hover {
+  color: var(--text-primary);
+  background-color: rgba(255, 255, 255, 0.06);
+}
+
+/* Panel Body */
+.right-panel-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  background: #0c0c0e;
+}
+
+/* Empty State */
+.right-empty-state {
+  margin: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 8px;
+  padding: 24px 16px;
+  border: 1px dashed var(--border-subtle);
+  border-radius: var(--radius-md);
+  max-width: 260px;
+  background-color: rgba(255, 255, 255, 0.01);
+}
+
+.empty-state-icon-box {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-md);
+  background-color: var(--badge-tool-bg);
+  color: var(--badge-tool);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(7, 117, 48, 0.3);
+}
+
+.empty-state-title {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.empty-state-hint {
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.45;
+}
+
+/* Tools List */
+.right-tools-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.tool-execution-card {
+  background-color: var(--surface-2);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.tool-execution-card.card-running {
+  border-color: rgba(245, 158, 11, 0.45);
+  background: linear-gradient(180deg, rgba(245, 158, 11, 0.06) 0%, var(--surface-2) 100%);
+  box-shadow: 0 0 16px rgba(245, 158, 11, 0.1);
+}
+
+.tool-execution-card.card-failed {
+  border-color: rgba(239, 68, 68, 0.35);
+}
+
+.tool-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  gap: 6px;
+}
+
+.tool-card-identity {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.tool-card-index {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+.tool-card-name {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-weight: 600;
+  font-size: 12px;
+  color: var(--white);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tool-badge-status {
+  font-size: 10px;
+  padding: 1.5px 6px;
+  border-radius: var(--radius-xs);
+  text-transform: uppercase;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.tool-card-metadata {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+
+.card-meta-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  font-family: monospace;
+  color: var(--text-muted);
+  background: rgba(255, 255, 255, 0.04);
+  padding: 1px 5px;
+  border-radius: var(--radius-xs);
+  border: 1px solid var(--border-subtle);
+}
+
+.cwd-tag {
+  color: var(--purple-bright);
+}
+
+.tool-sub-block {
+  margin-top: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.sub-block-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.sub-block-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.mini-copy-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 1.5px 5px;
+  font-size: 9.5px;
+  color: var(--text-muted);
+  background: transparent;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-xs);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.mini-copy-btn:hover {
+  color: var(--text-primary);
+  border-color: var(--border);
+  background-color: rgba(255, 255, 255, 0.06);
+}
+
+.code-box {
+  background-color: #0b0910;
+  padding: 8px 10px;
+  border-radius: var(--radius-xs);
+  border: 1px solid var(--border-subtle);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+  overflow: auto;
+  max-height: 200px;
+  margin: 0;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.2) rgba(11, 9, 16, 0.6);
+}
+
+.code-box::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+.code-box::-webkit-scrollbar-track {
+  background: rgba(11, 9, 16, 0.6);
+  border-radius: var(--radius-full);
+}
+
+.code-box::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: var(--radius-full);
+  transition: background var(--transition-fast);
+}
+
+.code-box::-webkit-scrollbar-thumb:hover {
+  background: var(--purple-electric);
+}
+
+.code-box::-webkit-scrollbar-corner {
+  background: rgba(11, 9, 16, 0.6);
+}
+
+.result-box {
+  background-color: #08120c;
+  border-color: rgba(16, 185, 129, 0.28);
+  color: var(--green-bright);
+}
+
+.box-error {
+  background-color: #16080a;
+  border-color: rgba(239, 68, 68, 0.3);
+  color: #f87171;
+}
+
+/* ==========================================================================
+   Responsive Multi-Device Styling for Tool Panel
+   ========================================================================== */
+
+@media (max-width: 1024px) {
+  .right-tool-panel.right-panel-collapsed {
+    display: none;
+  }
+
+  .right-tool-panel.right-panel-expanded {
+    position: fixed;
+    top: 52px;
+    right: 0;
+    bottom: 0;
+    width: 380px;
+    max-width: 90vw;
+    z-index: 45;
+    box-shadow: -14px 0 40px rgba(0, 0, 0, 0.8);
+    border-left: 1px solid var(--border-medium);
+  }
+}
+
+@media (max-width: 640px) {
+  .right-tool-panel.right-panel-expanded {
+    width: 100vw;
+    max-width: 100vw;
+    left: 0;
+    top: 52px;
+    border-left: none;
+  }
+}
+
+/* Accessibility: reduce motion */
+@media (prefers-reduced-motion: reduce) {
+  .right-tool-panel {
+    transition: none !important;
+  }
+}

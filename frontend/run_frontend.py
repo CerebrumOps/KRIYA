@@ -1,47 +1,46 @@
+#!/usr/bin/env python3
 # ==============================================================================
-# KRIYA - Frontend Web Server Runner
+# KRIYA - Frontend Server Runner
 # ==============================================================================
-# Serves the single-page React frontend on port 3000 (avoids 8000 and 8080).
-# Allows running the frontend independently on a separate laptop during demos.
+# Launches the Vite React frontend development server on port 3000.
+# Avoids ports 8000 and 8080 (reserved for LLM load balancer / inference node).
 #
 # Usage:
 #   python frontend/run_frontend.py
-#   OR from inside frontend directory:
-#   python run_frontend.py
+#   OR
+#   cd frontend && npm run dev
 # ==============================================================================
 
 import os
+import shutil
+import subprocess
 import sys
-from functools import partial
-from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-
-# Locate frontend directory
-current_dir = Path(__file__).resolve().parent
-frontend_dir = current_dir if current_dir.name == "frontend" else current_dir / "frontend"
-
-PORT = int(os.getenv("FRONTEND_PORT", 3000))
-HOST = os.getenv("FRONTEND_HOST", "0.0.0.0")
-
-
-class CustomFrontendHandler(SimpleHTTPRequestHandler):
-    """Serves index.html by default for any root request."""
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, directory=str(frontend_dir), **kwargs)
 
 
 def main():
+    frontend_dir = Path(__file__).resolve().parent
+    port = os.getenv("FRONTEND_PORT", "3000")
+
+    npm_bin = shutil.which("npm")
+    if not npm_bin:
+        mise_npm = Path("/home/vicky/.local/share/mise/installs/node/26.5.0/bin/npm")
+        if mise_npm.exists():
+            npm_bin = str(mise_npm)
+        else:
+            print("[Error] 'npm' not found on PATH. Please install Node.js.")
+            sys.exit(1)
+
     print("=" * 60)
-    print(f"  Starting KRIYA Frontend Server on http://{HOST}:{PORT}")
-    print(f"  Open in browser: http://localhost:{PORT}")
+    print(f"  Starting KRIYA React/Vite Frontend on port {port}")
+    print(f"  Open in browser: http://localhost:{port}")
     print("=" * 60)
 
-    server = ThreadingHTTPServer((HOST, PORT), CustomFrontendHandler)
+    cmd = [npm_bin, "run", "dev", "--", "--port", port]
     try:
-        server.serve_forever()
+        subprocess.run(cmd, cwd=str(frontend_dir), check=True)
     except KeyboardInterrupt:
         print("\nStopping frontend server...")
-        server.shutdown()
 
 
 if __name__ == "__main__":

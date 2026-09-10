@@ -1,0 +1,296 @@
+/* ==========================================================================
+   KRIYA Frosted Glass Sidebar (Futuristic Aesthetic)
+   ========================================================================== */
+
+.sidebar {
+  width: var(--sidebar-width);
+  min-width: var(--sidebar-width);
+  height: 100%;
+  background: rgba(14, 10, 22, 0.75);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-right: 1px solid var(--border);
+  box-shadow: var(--glass-inner-highlight);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  user-select: none;
+  position: relative;
+  box-sizing: border-box;
+}
+
+/* 1. Header with "+ New Chat" */
+.sidebar-header {
+  padding: 16px 14px 10px 14px;
+  flex-shrink: 0;
+}
+
+.new-chat-container {
+  width: 100%;
+}
+
+.new-chat-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 11px 16px;
+  background: var(--accent-gradient);
+  color: var(--white);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: var(--radius-sm);
+  font-size: 13.5px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  box-shadow: 0 4px 18px rgba(168, 85, 247, 0.32), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  transition: all var(--transition-fast);
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+}
+
+.new-chat-btn::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  transition: left 0.6s ease;
+}
+
+.new-chat-btn:hover {
+  background: var(--accent-gradient-hover);
+  box-shadow: 0 6px 22px rgba(217, 70, 239, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.35);
+  transform: translateY(-1px);
+}
+
+.new-chat-btn:hover::before {
+  left: 100%;
+}
+
+.new-chat-btn:active {
+  transform: translateY(0);
+  filter: brightness(0.95);
+}
+
+/* 2. Chat History Section */
+.chat-history-section {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 10px 10px 16px 10px;
+  overflow: hidden;
+  min-height: 0;
+}
+
+.chat-history-header {
+  padding: 8px 10px 10px 10px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.chat-history-list {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-right: 2px;
+}
+
+.chat-history-item-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  border-radius: var(--radius-sm);
+  transition: all var(--transition-fast);
+}
+
+.chat-history-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 32px 10px 12px;
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-size: 13.5px;
+  font-weight: 500;
+  text-align: left;
+  border: 1px solid transparent;
+  background-color: transparent;
+  transition: all var(--transition-fast);
+  cursor: pointer;
+  position: relative;
+}
+
+.chat-history-item:hover {
+  background: var(--glass-bg-hover);
+  color: var(--text-primary);
+  border-color: var(--border);
+}
+
+.chat-item-delete-btn {
+  position: absolute;
+  right: 8px;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-xs);
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-muted);
+  opacity: 0;
+  pointer-events: none;
+  transition: all var(--transition-fast);
+  cursor: pointer;
+  z-index: 2;
+}
+
+.chat-history-item-wrapper:hover .chat-item-delete-btn {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.chat-item-delete-btn:hover {
+  background: rgba(244, 63, 94, 0.16);
+  color: #FB7185;
+  border-color: rgba(244, 63, 94, 0.38);
+  box-shadow: 0 0 12px rgba(244, 63, 94, 0.25);
+  transform: scale(1.08);
+}
+
+/* ==========================================================================
+   Right-Click Context Menu (Color Theory & Design Science)
+   ========================================================================== */
+.chat-context-menu {
+  position: fixed;
+  z-index: 9999;
+  min-width: 165px;
+  padding: 5px;
+  background: rgba(16, 11, 26, 0.94);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: var(--radius-sm);
+  box-shadow: 0 12px 36px -4px rgba(0, 0, 0, 0.8),
+              0 0 1px rgba(255, 255, 255, 0.25),
+              0 0 20px rgba(168, 85, 247, 0.12);
+  animation: contextMenuPop 0.14s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes contextMenuPop {
+  from {
+    opacity: 0;
+    transform: scale(0.94) translateY(-3px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.context-menu-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 8px 12px;
+  border-radius: var(--radius-xs);
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.2px;
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  text-align: left;
+}
+
+/* Harmonic Rose/Crimson Destructive Palette */
+.context-menu-delete {
+  color: #FB7185; /* rose-400 */
+}
+
+.context-menu-delete .context-menu-icon {
+  color: #FB7185;
+  transition: transform 0.15s ease, color 0.15s ease;
+}
+
+.context-menu-delete:hover {
+  background: rgba(244, 63, 94, 0.16);
+  border-color: rgba(244, 63, 94, 0.36);
+  color: #FFF1F2; /* rose-50 */
+  box-shadow: 0 0 14px rgba(244, 63, 94, 0.22);
+}
+
+.context-menu-delete:hover .context-menu-icon {
+  color: #F43F5E; /* rose-500 */
+  transform: scale(1.08);
+}
+
+
+.chat-history-item.active {
+  background: rgba(255, 255, 255, 0.055);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-color: rgba(168, 85, 247, 0.45);
+  color: var(--text-primary);
+  font-weight: 600;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 4px 14px rgba(0, 0, 0, 0.4);
+}
+
+.chat-history-item.active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 6px;
+  bottom: 6px;
+  width: 3px;
+  border-radius: 999px;
+  background: var(--accent-gradient);
+}
+
+.history-item-icon {
+  flex-shrink: 0;
+  color: var(--text-muted);
+  transition: color var(--transition-fast);
+}
+
+.chat-history-item:hover .history-item-icon {
+  color: var(--text-primary);
+}
+
+.chat-history-item.active .history-item-icon {
+  color: var(--purple-electric);
+}
+
+.history-item-title {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+  line-height: 1.3;
+}
+
+.chat-history-empty {
+  padding: 32px 16px;
+  font-size: 13px;
+  color: var(--text-dim);
+  text-align: center;
+  line-height: 1.5;
+}
