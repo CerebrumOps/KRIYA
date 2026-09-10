@@ -35,7 +35,9 @@ async def get_db_pool() -> asyncpg.Pool:
     """Returns or creates the global asyncpg connection pool."""
     global _pool
     if _pool is None:
-        _pool = await asyncpg.create_pool(DATABASE_URL, min_size=1, max_size=10)
+        load_dotenv(dotenv_path=env_path, override=True)
+        db_url = os.getenv("DATABASE_URL", DATABASE_URL)
+        _pool = await asyncpg.create_pool(db_url, min_size=1, max_size=10)
         # Ensure table exists on first connection
         async with _pool.acquire() as conn:
             await conn.execute(CREATE_CONVERSATIONS_TABLE_SQL)
