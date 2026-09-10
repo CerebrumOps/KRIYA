@@ -12,8 +12,17 @@ import {
   Clock,
   FolderGit2
 } from 'lucide-react';
-import { ToolCallItem } from '../RightPanel/ToolCalling';
+
+export interface ToolCallItem {
+  id?: string;
+  name: string;
+  status?: 'running' | 'completed' | 'error' | 'failed' | string;
+  args?: any;
+  result?: any;
+}
+
 import './RightToolPanel.css';
+import { copyTextToClipboard } from '../../utils/clipboard';
 
 export interface RightToolPanelProps {
   toolCalls?: ToolCallItem[];
@@ -30,11 +39,14 @@ export default function RightToolPanel({
 }: RightToolPanelProps) {
   const [copiedId, setCopiedId] = useState<string | number | null>(null);
 
-  const handleCopy = (id: string | number, text: any, e?: React.MouseEvent) => {
+  const handleCopy = async (id: string | number, text: any, e?: React.MouseEvent) => {
     e?.stopPropagation();
-    navigator.clipboard.writeText(typeof text === 'string' ? text : JSON.stringify(text, null, 2));
-    setCopiedId(id);
-    setTimeout(() => setCopiedId(null), 2000);
+    const str = typeof text === 'string' ? text : JSON.stringify(text, null, 2);
+    const ok = await copyTextToClipboard(str);
+    if (ok) {
+      setCopiedId(id);
+      setTimeout(() => setCopiedId(null), 2000);
+    }
   };
 
   const hasTools = toolCalls.length > 0;
