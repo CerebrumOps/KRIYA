@@ -28,13 +28,16 @@ load_dotenv(dotenv_path=env_path)
 
 DATABASE_URL = os.getenv("DATABASE_URL")
 
+import asyncio
+
 _pool: Optional[asyncpg.Pool] = None
 
 
 async def get_db_pool() -> asyncpg.Pool:
-    """Returns or creates the global asyncpg connection pool."""
+    """Returns or creates the global asyncpg connection pool bound to current event loop."""
     global _pool
-    if _pool is None:
+    current_loop = asyncio.get_running_loop()
+    if _pool is None or getattr(_pool, "_loop", None) != current_loop or getattr(_pool, "_closed", False):
         load_dotenv(dotenv_path=env_path, override=True)
         db_url = os.getenv("DATABASE_URL", DATABASE_URL)
         _pool = await asyncpg.create_pool(db_url, min_size=1, max_size=10)
@@ -44,9 +47,10 @@ async def get_db_pool() -> asyncpg.Pool:
     return _pool
 
 
-async def create_conversation(custom_id: Optional[str] = None) -> Dict[str, Any]:
+async def create_conversation(custom_id: Optional[str] = None, employee_id: Optional[str] = None) -> Dict[str, Any]:
     """
-    Creates a new conversation record in PostgreSQL with an empty title and empty messages list.
+    Creates a new conversation record in PostgreSQL with an empty title and empty messages list,
+    associated with an employee account.
     """
     pool = await get_db_pool()
     conv_id = custom_id or str(uuid.uuid4())[:8]
@@ -55,35 +59,42 @@ async def create_conversation(custom_id: Optional[str] = None) -> Dict[str, Any]
     async with pool.acquire() as conn:
         await conn.execute(
             """
-            INSERT INTO conversations (id, name, messages, created_at, updated_at)
-            VALUES ($1, $2, $3::jsonb, NOW(), NOW())
-            ON CONFLICT (id) DO NOTHING
+            INSERT INTO conversations (id, name, employee_id, messages, created_at, updated_at)
+            VALUES ($1, $2, $3, $4::jsonb, NOW(), NOW())
+            ON CONFLICT (id) DO UPDATE
+            SET employee_id = COALESCE(conversations.employee_id, EXCLUDED.employee_id),
+                updated_at = NOW()
             """,
-            conv_id, "", empty_messages_json
+            conv_id, "", employee_id, empty_messages_json
         )
 
     return {
         "id": conv_id,
         "name": "New Chat",
+        "employee_id": employee_id,
         "messages": [],
         "created_at": datetime.utcnow().isoformat(),
         "updated_at": datetime.utcnow().isoformat()
     }
 
 
-async def get_conversation(conv_id: str) -> Optional[Dict[str, Any]]:
+async def get_conversation(conv_id: str, employee_id: Optional[str] = None) -> Optional[Dict[str, Any]]:
     """
     Retrieves a conversation and its full JSON messages history from PostgreSQL.
+    Strictly scoped to employee_id to ensure complete multi-tenant account isolation.
     """
+    if not employee_id:
+        return None
+
     pool = await get_db_pool()
     async with pool.acquire() as conn:
         row = await conn.fetchrow(
             """
-            SELECT id, name, messages, created_at, updated_at
+            SELECT id, name, employee_id, messages, created_at, updated_at
             FROM conversations
-            WHERE id = $1
+            WHERE id = $1 AND employee_id = $2
             """,
-            conv_id
+            conv_id, employee_id
         )
 
     if not row:
@@ -104,27 +115,33 @@ async def get_conversation(conv_id: str) -> Optional[Dict[str, Any]]:
     return {
         "id": row["id"],
         "name": row["name"] or "New Chat",
+        "employee_id": row["employee_id"],
         "messages": messages_list,
         "created_at": row["created_at"].isoformat() if row["created_at"] else None,
         "updated_at": row["updated_at"].isoformat() if row["updated_at"] else None
     }
 
 
-async def list_conversations(limit: int = 50) -> List[Dict[str, Any]]:
+async def list_conversations(employee_id: Optional[str] = None, limit: int = 50) -> List[Dict[str, Any]]:
     """
     Returns a list of conversations for the frontend chats panel containing
-    only the conversation ID and name (content is queried only on click).
+    only the conversation ID and name, strictly filtered by employee_id.
+    Returns an empty list if employee_id is absent to guarantee zero cross-user leakage.
     """
+    if not employee_id:
+        return []
+
     pool = await get_db_pool()
     async with pool.acquire() as conn:
         rows = await conn.fetch(
             """
             SELECT id, name
             FROM conversations
+            WHERE employee_id = $1
             ORDER BY updated_at DESC
-            LIMIT $1
+            LIMIT $2
             """,
-            limit
+            employee_id, limit
         )
 
     return [
@@ -136,7 +153,11 @@ async def list_conversations(limit: int = 50) -> List[Dict[str, Any]]:
     ]
 
 
-async def append_messages_to_conversation(conv_id: str, new_messages: List[Dict[str, Any]]) -> bool:
+async def append_messages_to_conversation(
+    conv_id: str,
+    new_messages: List[Dict[str, Any]],
+    employee_id: Optional[str] = None
+) -> bool:
     """
     Appends new user/assistant message exchanges to the conversation's messages array in PostgreSQL.
     """
@@ -168,12 +189,14 @@ async def append_messages_to_conversation(conv_id: str, new_messages: List[Dict[
         # Update in database
         result = await conn.execute(
             """
-            INSERT INTO conversations (id, name, messages, updated_at)
-            VALUES ($1, '', $2::jsonb, NOW())
+            INSERT INTO conversations (id, name, employee_id, messages, updated_at)
+            VALUES ($1, '', $2, $3::jsonb, NOW())
             ON CONFLICT (id) DO UPDATE
-            SET messages = $2::jsonb, updated_at = NOW()
+            SET messages = $3::jsonb,
+                employee_id = COALESCE(conversations.employee_id, EXCLUDED.employee_id),
+                updated_at = NOW()
             """,
-            conv_id, updated_json
+            conv_id, employee_id, updated_json
         )
         return "UPDATE" in result or "INSERT" in result
 

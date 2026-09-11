@@ -32,6 +32,10 @@ class WebChatRequest(BaseModel):
         default=0.2,
         description="Sampling temperature"
     )
+    conversation_id: Optional[str] = Field(
+        default=None,
+        description="Active conversation / chat ID to isolate workspace and artifacts"
+    )
 
 
 class WebChatResponse(BaseModel):

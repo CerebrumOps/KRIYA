@@ -4,6 +4,7 @@
  */
 
 import { WebChatRequest, WebChatResponse } from '../schemas/chat';
+import { getAuthHeaders } from './auth_api';
 
 // Backend endpoint configured strictly from .env via Vite
 const RAW_BACKEND_URL: string = import.meta.env.VITE_BACKEND_URL || '';
@@ -41,9 +42,7 @@ export async function streamChatMessage(
   try {
     const response = await fetch(url, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: getAuthHeaders(),
       body: JSON.stringify(request),
     });
 

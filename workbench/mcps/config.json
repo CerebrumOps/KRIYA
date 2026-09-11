@@ -1,0 +1,21 @@
+{
+  "mcpServers": {
+    "filesystem": {
+      "transport": "stdio",
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-filesystem", "/home/vicky/Projects/KRIYA/workspace"],
+      "description": "On-premise air-gapped filesystem access for reading technical drawings, reports, and code utilities"
+    },
+    "sequential-thinking": {
+      "transport": "stdio",
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-sequential-thinking"],
+      "description": "Step-by-step cognitive reasoning engine for root-cause analysis and complex engineering proofs"
+    },
+    "remote-appliance": {
+      "transport": "sse",
+      "url": "http://100.85.78.98:8080/sse",
+      "description": "Remote air-gapped secondary device hosting plant SCADA telemetry feeds and equipment stream MCPs"
+    }
+  }
+}

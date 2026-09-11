@@ -1,9 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Menu, X, Plus, Wrench, PanelLeftOpen, PanelLeftClose, Flame, Compass, ShieldCheck, Sun, Moon, LogOut } from 'lucide-react';
+import { Menu, X, Plus, Wrench, PanelLeftOpen, PanelLeftClose, Flame, Compass, ShieldCheck, Sun, Moon, LogOut, Layers, FolderOpen, Shield, ShieldAlert, Users, FileText } from 'lucide-react';
 import Sidebar from './components/Sidebar/Sidebar';
 import ChatArea from './components/ChatArea/ChatArea';
 import RightToolPanel from './components/RightToolPanel/RightToolPanel';
 import AuthLayout from './components/Auth/AuthLayout';
+import TaskQueueModal from './components/TaskQueue/TaskQueueModal';
+import ArtifactsDrawer from './components/Artifacts/ArtifactsDrawer';
+import AdminPortal from './components/Admin/AdminPortal';
+import { Plan, ChecklistItem, getActivePlan, createPlan } from './api/plan_api';
 import { streamChatMessage } from './api/chat_api';
 import { 
   createConversation, 
@@ -127,37 +131,125 @@ function parseAssistantStream(text: string): ParsedStreamResult {
     }
   }
 
-  // 3. Clean user-facing text
-  const clean = raw
-    .replace(/<think>[\s\S]*?<\/think>/g, '')
-    .replace(/<think>[\s\S]*$/g, '')
-    .replace(/<tool_call[\s\S]*?<\/tool_call>/g, '')
-    .replace(/<tool_result[\s\S]*?<\/tool_result>/g, '')
-    .replace(/<tool_call[\s\S]*$/g, '')
-    .replace(/<tool_result[\s\S]*$/g, '')
-    .replace(/<response_metadata>[\s\S]*?<\/response_metadata>/g, '')
-    .replace(/<response_metadata>[\s\S]*$/g, '')
-    .replace(/<\/?(think|response_metadata)>/g, '')
-    .trim();
-  content = clean;
+  // 3. Clean user-facing text (strict isolation: never leak reasoning into content)
+  if (toolCalls.length > 0) {
+    // When tool calls are present, user-facing content is strictly the synthesized output AFTER the last tool execution
+    const lastResultIdx = raw.lastIndexOf('</tool_result>');
+    if (lastResultIdx !== -1) {
+      // Collect any intermediate monologue before last </tool_result> that was outside <think> into reasoning
+      const preRaw = raw.slice(0, lastResultIdx);
+      const strayCommentary = preRaw
+        .replace(/<think>[\s\S]*?<\/think>/g, '')
+        .replace(/<think>[\s\S]*$/g, '')
+        .replace(/<tool_call[\s\S]*?<\/tool_call>/g, '')
+        .replace(/<tool_result[\s\S]*?<\/tool_result>/g, '')
+        .replace(/<tool_call[\s\S]*$/g, '')
+        .replace(/<tool_result[\s\S]*$/g, '')
+        .replace(/<response_metadata>[\s\S]*?<\/response_metadata>/g, '')
+        .replace(/<response_metadata>[\s\S]*$/g, '')
+        .replace(/<\/?(think|response_metadata)>/g, '')
+        .trim();
+
+      if (strayCommentary && !reasoning.includes(strayCommentary)) {
+        reasoning = reasoning ? `${strayCommentary}\n\n${reasoning}` : strayCommentary;
+      }
+
+      // Final response starts after the last tool_result
+      const postRaw = raw.slice(lastResultIdx + '</tool_result>'.length);
+      const postClean = postRaw
+        .replace(/<think>[\s\S]*?<\/think>/g, '')
+        .replace(/<think>[\s\S]*$/g, '')
+        .replace(/<tool_call[\s\S]*?<\/tool_call>/g, '')
+        .replace(/<tool_result[\s\S]*?<\/tool_result>/g, '')
+        .replace(/<tool_call[\s\S]*$/g, '')
+        .replace(/<tool_result[\s\S]*$/g, '')
+        .replace(/<response_metadata>[\s\S]*?<\/response_metadata>/g, '')
+        .replace(/<response_metadata>[\s\S]*$/g, '')
+        .replace(/<\/?(think|response_metadata)>/g, '')
+        .trim();
+
+      content = postClean;
+    } else {
+      // Tools are still executing in-flight (no tool_result completed yet)
+      content = '';
+    }
+  } else {
+    // Standard response without tool calls
+    const clean = raw
+      .replace(/<think>[\s\S]*?<\/think>/g, '')
+      .replace(/<think>[\s\S]*$/g, '')
+      .replace(/<tool_call[\s\S]*?<\/tool_call>/g, '')
+      .replace(/<tool_result[\s\S]*?<\/tool_result>/g, '')
+      .replace(/<tool_call[\s\S]*$/g, '')
+      .replace(/<tool_result[\s\S]*$/g, '')
+      .replace(/<response_metadata>[\s\S]*?<\/response_metadata>/g, '')
+      .replace(/<response_metadata>[\s\S]*$/g, '')
+      .replace(/<\/?(think|response_metadata)>/g, '')
+      .trim();
+    content = clean;
+  }
 
   return { reasoning, content, toolCalls, isThinking, isAnyRunning, meta };
 }
 
+import { getStoredAuthToken, getStoredEmployee, getStoredAccess, clearAuthSession, logoutSession, SafeEmployeeAccess } from './api/auth_api';
+import { Employee } from './schemas/employee';
+
 export default function App() {
-  const [currentView, setCurrentView] = useState<'auth' | 'app'>('auth');
+  const [currentView, setCurrentView] = useState<'auth' | 'app' | 'admin'>(() => {
+    return getStoredAuthToken() ? 'app' : 'auth';
+  });
+  const [currentUser, setCurrentUser] = useState<Employee | null>(() => {
+    return getStoredEmployee();
+  });
+  const [currentAccess, setCurrentAccess] = useState<SafeEmployeeAccess | null>(() => {
+    return getStoredAccess();
+  });
+
+  const isAdmin = currentAccess?.level === 'admin' || (currentAccess?.permissions || []).includes('admin:manage_employees');
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
   const [messages, setMessages] = useState<UIMessage[]>([]);
   const [toolCalls, setToolCalls] = useState<ToolCallItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isPlanning, setIsPlanning] = useState(false);
   const [isToolPanelExpanded, setIsToolPanelExpanded] = useState(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [isTaskQueueOpen, setIsTaskQueueOpen] = useState(false);
+  const [isArtifactsOpen, setIsArtifactsOpen] = useState(false);
+  const [activePlan, setActivePlan] = useState<Plan | null>(null);
+  const [checklistItems, setChecklistItems] = useState<ChecklistItem[]>([]);
+  const [isChecklistOpen, setIsChecklistOpen] = useState<boolean>(false);
+  const toolPanelCollapseTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const wasAnyToolRunningRef = useRef<boolean>(false);
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
     const saved = localStorage.getItem('kriya_theme');
     return saved === 'dark' ? 'dark' : 'light';
   });
+
+  // Check active plan on mount or chat switch
+  useEffect(() => {
+    getActivePlan()
+      .then((p) => {
+        if (p) {
+          setActivePlan(p);
+          const items: ChecklistItem[] = p.check_list && p.check_list.length > 0
+            ? p.check_list
+            : (p.steps || []).map((s, idx) => ({
+                id: `step_${s.step_id || idx + 1}`,
+                task: s.title,
+                tool: s.tool,
+                status: s.status === 'completed' ? 'success' : (s.status === 'running' ? 'in_progress' : 'pending')
+              }));
+          setChecklistItems(items);
+          if (p.status === 'APPROVED' || p.status === 'IN_PROGRESS') {
+            setIsChecklistOpen(true);
+          }
+        }
+      })
+      .catch(() => {});
+  }, [activeChatId]);
 
   // Sync theme attribute to HTML root and persist in localStorage
   useEffect(() => {
@@ -267,14 +359,24 @@ export default function App() {
     }
   };
 
-  const hasInitializedRef = useRef<boolean>(false);
-
-  // Load conversation history from PostgreSQL on component mount
+  // Load conversation history from PostgreSQL whenever logged-in user changes
   useEffect(() => {
-    if (hasInitializedRef.current) return;
-    hasInitializedRef.current = true;
-
     async function loadInitialConversations() {
+      // If not logged in, wipe any chat states
+      if (!currentUser?.employeeId) {
+        setHistory([]);
+        setActiveChatId(null);
+        setMessages([]);
+        setToolCalls([]);
+        return;
+      }
+
+      // Reset previous user's conversation state immediately
+      setHistory([]);
+      setActiveChatId(null);
+      setMessages([]);
+      setToolCalls([]);
+
       try {
         const list = await listConversations();
         if (list && list.length > 0) {
@@ -293,7 +395,66 @@ export default function App() {
 
     loadInitialConversations();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [currentUser?.employeeId]);
+
+  // Handle generating a plan via Planning Agent and popping up approval modal
+  const handleRequestPlan = async (text: string) => {
+    if (!text.trim() || isLoading || isPlanning) return;
+    setIsPlanning(true);
+    setIsLoading(true);
+    try {
+      const generatedPlan = await createPlan(text.trim());
+      setActivePlan(generatedPlan);
+      setIsTaskQueueOpen(true);
+    } catch (err: any) {
+      console.error('Failed to create execution plan:', err);
+    } finally {
+      setIsPlanning(false);
+      setIsLoading(false);
+    }
+  };
+
+  const handlePlanApproved = (approvedPlan: Plan) => {
+    const items: ChecklistItem[] = approvedPlan.check_list && approvedPlan.check_list.length > 0
+      ? approvedPlan.check_list
+      : (approvedPlan.steps || []).map((s, idx) => ({
+          id: `step_${s.step_id || idx + 1}`,
+          task: s.title,
+          tool: s.tool,
+          status: s.status === 'completed' ? 'success' : (s.status === 'running' ? 'in_progress' : 'pending')
+        }));
+
+    setActivePlan(approvedPlan);
+    setChecklistItems(items);
+    setIsChecklistOpen(true);
+    setIsTaskQueueOpen(false);
+
+    const formattedTasks = items
+      .map((it, idx) => `${idx + 1}. [Tool: ${it.tool || 'specialized_tool'}] ${it.task}`)
+      .join('\n');
+
+    const executionPrompt = `Execute approved engineering plan: ${approvedPlan.title}
+
+### Strategic Plan & Directives:
+${approvedPlan.plan || 'Execute the approved operational workflow according to MRPL safety standards.'}
+
+### Mandatory Execution Checklist:
+${formattedTasks}
+
+### Operating Instructions for KRIYA AI:
+1. Execute each task in the checklist above using the specified specialized refinery tools.
+2. Store all generated documents (.docx approval notes, .xlsx cost sheets, .pptx decks, calculation scripts) into the active chat workspace.
+3. Upon concluding tool executions, synthesize the complete findings into an authoritative final engineering report.`;
+
+    handleSendMessage(executionPrompt);
+  };
+
+  const handlePlanRejected = () => {
+    setActivePlan(null);
+    setChecklistItems([]);
+    setIsChecklistOpen(false);
+    setIsTaskQueueOpen(false);
+  };
 
   // Handle sending a message with real-time streaming and tool execution
   const handleSendMessage = async (text: string) => {
@@ -350,6 +511,7 @@ export default function App() {
         thinking: true,
         model: 'default',
         temperature: 0.2,
+        conversation_id: currentChatId || undefined,
       };
 
       await streamChatMessage(
@@ -360,8 +522,52 @@ export default function App() {
 
           if (parsed.toolCalls.length > 0) {
             setToolCalls(parsed.toolCalls);
+
+            // Synchronize checklist items with real-time tool calls
+            setChecklistItems((prevItems) => {
+              if (prevItems.length === 0) return prevItems;
+              let hasChange = false;
+              const nextItems = prevItems.map((item) => {
+                const itemTool = (item.tool || '').toLowerCase().trim();
+                if (!itemTool) return item;
+
+                const matchingCall = parsed.toolCalls.find((tc) => {
+                  const tcName = (tc.name || '').toLowerCase().trim();
+                  return tcName === itemTool || tcName.includes(itemTool) || itemTool.includes(tcName);
+                });
+
+                if (matchingCall) {
+                  if (matchingCall.status === 'completed' && item.status !== 'success') {
+                    hasChange = true;
+                    return { ...item, status: 'success' as const };
+                  } else if (matchingCall.status === 'running' && item.status === 'pending') {
+                    hasChange = true;
+                    return { ...item, status: 'in_progress' as const };
+                  }
+                }
+                return item;
+              });
+              return hasChange ? nextItems : prevItems;
+            });
+
             if (parsed.isAnyRunning) {
+              // Tool is actively executing: cancel any pending slide-back timer and open panel
+              if (toolPanelCollapseTimerRef.current) {
+                clearTimeout(toolPanelCollapseTimerRef.current);
+                toolPanelCollapseTimerRef.current = null;
+              }
               setIsToolPanelExpanded(true);
+              wasAnyToolRunningRef.current = true;
+            } else if (wasAnyToolRunningRef.current) {
+              // Tool execution just completed: wait 1 second (1000ms), then slide back closed!
+              wasAnyToolRunningRef.current = false;
+              if (toolPanelCollapseTimerRef.current) {
+                clearTimeout(toolPanelCollapseTimerRef.current);
+              }
+              toolPanelCollapseTimerRef.current = setTimeout(() => {
+                setIsToolPanelExpanded(false);
+                toolPanelCollapseTimerRef.current = null;
+              }, 1000);
             }
           }
 
@@ -386,13 +592,31 @@ export default function App() {
           const finalDurationMs = parsed.meta?.time_taken_ms ?? Math.round(performance.now() - startTime);
           const totalTokens = parsed.meta?.tokens_generated ?? Math.round((text.length + rawAccumulator.length) / 4);
 
+          // If tool panel was active or left open, slide back after 1 second
+          if (wasAnyToolRunningRef.current || isToolPanelExpanded) {
+            wasAnyToolRunningRef.current = false;
+            if (toolPanelCollapseTimerRef.current) {
+              clearTimeout(toolPanelCollapseTimerRef.current);
+            }
+            toolPanelCollapseTimerRef.current = setTimeout(() => {
+              setIsToolPanelExpanded(false);
+              toolPanelCollapseTimerRef.current = null;
+            }, 1000);
+          }
+
+          const resolvedContent = parsed.content || (
+            parsed.toolCalls.length > 0
+              ? 'All requested operations and verifications were completed successfully.'
+              : ''
+          );
+
           setMessages((prev) =>
             prev.map((msg) =>
               msg.id === assistantId
                 ? {
                     ...msg,
                     rawContent: rawAccumulator,
-                    content: parsed.content || 'Completed requested action.',
+                    content: resolvedContent,
                     reasoning: parsed.reasoning,
                     isStreaming: false,
                     isThinking: false,
@@ -465,10 +689,42 @@ export default function App() {
     }
   };
 
+  const handleLoginSuccess = () => {
+    setCurrentUser(getStoredEmployee());
+    setCurrentAccess(getStoredAccess());
+    setCurrentView('app');
+  };
+
+  const handleSignOut = () => {
+    logoutSession().catch(() => {});
+    clearAuthSession();
+    setCurrentUser(null);
+    setCurrentAccess(null);
+    setHistory([]);
+    setActiveChatId(null);
+    setMessages([]);
+    setToolCalls([]);
+    setActivePlan(null);
+    setIsTaskQueueOpen(false);
+    setIsArtifactsOpen(false);
+    setCurrentView('auth');
+  };
+
   if (currentView === 'auth') {
     return (
       <AuthLayout
-        onLoginSuccess={() => setCurrentView('app')}
+        onLoginSuccess={handleLoginSuccess}
+        theme={theme}
+        onToggleTheme={toggleTheme}
+      />
+    );
+  }
+
+  if (currentView === 'admin') {
+    return (
+      <AdminPortal
+        onReturnToApp={() => setCurrentView('app')}
+        currentUser={currentUser}
         theme={theme}
         onToggleTheme={toggleTheme}
       />
@@ -516,6 +772,18 @@ export default function App() {
             <LogOut size={17} />
           </button>
 
+          {isAdmin && (
+            <button
+              type="button"
+              className="mobile-nav-btn"
+              onClick={() => setCurrentView('admin')}
+              aria-label="Admin Portal"
+              title="Admin Portal"
+            >
+              <ShieldAlert size={17} />
+            </button>
+          )}
+
           <button
             type="button"
             className="mobile-nav-btn"
@@ -539,6 +807,72 @@ export default function App() {
         />
       )}
 
+      {/* Desktop Sovereign Workbench Top Strip */}
+      <div className="workbench-top-strip">
+        <div className="strip-left">
+          <span className="airgap-badge">
+            <Shield size={11} />
+            <span>SOVEREIGN AIR-GAPPED WORKBENCH</span>
+          </span>
+          <span className="site-pill">MRPL Mangalore Complex (Site Alpha)</span>
+          {currentUser && (
+            <span className="user-pill">
+              {currentUser.employeeName} • {currentUser.designation}
+            </span>
+          )}
+        </div>
+
+        <div className="strip-right">
+          <button
+            type="button"
+            className={`workbench-action-btn ${activePlan?.status === 'PENDING_APPROVAL' ? 'active-plan' : ''}`}
+            onClick={async () => {
+              if (!activePlan) {
+                try {
+                  const defaultPlan = await createPlan("Analyze the attached scanned inspection report for the compressor unit.");
+                  setActivePlan(defaultPlan);
+                } catch (e) {
+                  console.warn('Failed to load plan:', e);
+                }
+              }
+              setIsTaskQueueOpen(true);
+            }}
+            title="Review multi-step strategic plan specifications"
+          >
+            <FileText size={13} />
+            <span>
+              {activePlan?.status === 'PENDING_APPROVAL'
+                ? 'Task Plan (1 Review)'
+                : activePlan
+                ? `Task Plan: ${activePlan.status}`
+                : 'Task Plan'}
+            </span>
+          </button>
+
+          <button
+            type="button"
+            className="workbench-action-btn"
+            onClick={() => setIsArtifactsOpen(true)}
+            title="View generated Word notes, Excel sheets, and PowerPoint decks"
+          >
+            <FolderOpen size={13} />
+            <span>Deliverables</span>
+          </button>
+
+          {isAdmin && (
+            <button
+              type="button"
+              className="workbench-action-btn admin-strip-btn"
+              onClick={() => setCurrentView('admin')}
+              title="Open Sovereign Personnel & Directory Administration"
+            >
+              <ShieldAlert size={13} />
+              <span>Admin Portal</span>
+            </button>
+          )}
+        </div>
+      </div>
+
       {/* Main Multi-Column Content Area */}
       <div className="app-workspace-body">
         {/* Floating Expand Sidebar Trigger (Desktop when collapsed) */}
@@ -557,6 +891,7 @@ export default function App() {
         {/* 1. Left Sidebar */}
         <div className={`sidebar-responsive-wrapper ${isMobileSidebarOpen ? 'sidebar-open' : ''} ${isSidebarCollapsed ? 'desktop-collapsed' : ''}`}>
           <Sidebar
+            currentUser={currentUser}
             history={history}
             activeChatId={activeChatId}
             theme={theme}
@@ -575,7 +910,7 @@ export default function App() {
               setIsMobileSidebarOpen(false);
             }}
             onToggleCollapse={() => setIsSidebarCollapsed(true)}
-            onSignOut={() => setCurrentView('auth')}
+            onSignOut={handleSignOut}
           />
         </div>
 
@@ -583,7 +918,13 @@ export default function App() {
         <ChatArea
           messages={messages}
           onSendMessage={handleSendMessage}
+          onRequestPlan={handleRequestPlan}
           isLoading={isLoading}
+          isPlanning={isPlanning}
+          activePlan={activePlan}
+          checklistItems={checklistItems}
+          isChecklistOpen={isChecklistOpen}
+          onCloseChecklist={() => setIsChecklistOpen(false)}
         />
 
         {/* 3. Collapsible Right-Side Tool Execution Drawer */}
@@ -594,6 +935,22 @@ export default function App() {
           isAnyRunning={isAnyRunning}
         />
       </div>
+
+      {/* Modals & Overlays */}
+      <TaskQueueModal
+        plan={activePlan}
+        isOpen={isTaskQueueOpen}
+        onClose={() => setIsTaskQueueOpen(false)}
+        onPlanApproved={handlePlanApproved}
+        onPlanRejected={handlePlanRejected}
+        onPlanUpdated={(updated) => setActivePlan(updated)}
+      />
+
+      <ArtifactsDrawer
+        isOpen={isArtifactsOpen}
+        onClose={() => setIsArtifactsOpen(false)}
+        activeChatId={activeChatId}
+      />
     </div>
   );
 }

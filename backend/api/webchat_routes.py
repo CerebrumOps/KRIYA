@@ -1,20 +1,28 @@
-import json
-from fastapi import APIRouter, HTTPException
+from typing import Any, Dict, Optional
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 
 from backend.schemas.webchat import WebChatRequest, WebChatResponse
 from backend.orchestration.main import stream_kriya_chat, generate_kriya_chat
+from backend.api.session import get_optional_session
+from backend.tools.workspace_manager import set_active_workspace
 
 router = APIRouter(prefix="/api/chat", tags=["WebChat"])
 
 
 @router.post("/stream")
-def chat_stream(request: WebChatRequest):
+def chat_stream(
+    request: WebChatRequest,
+    session: Optional[Dict[str, Any]] = Depends(get_optional_session),
+):
     """
     Streams response tokens to the web frontend using chunked transfer.
     """
+    employee_id = session.get("employee_id") if session else None
+
     def token_generator():
         try:
+            set_active_workspace(employee_id, request.conversation_id)
             for token in stream_kriya_chat(request):
                 yield token
         except Exception as e:
@@ -32,10 +40,15 @@ def chat_stream(request: WebChatRequest):
 
 
 @router.post("", response_model=WebChatResponse)
-def chat_non_stream(request: WebChatRequest):
+def chat_non_stream(
+    request: WebChatRequest,
+    session: Optional[Dict[str, Any]] = Depends(get_optional_session),
+):
     """
     Non-streaming endpoint returning full response in JSON format.
     """
+    employee_id = session.get("employee_id") if session else None
+    set_active_workspace(employee_id, request.conversation_id)
     try:
         result = generate_kriya_chat(request)
         reply = result["reply"] if isinstance(result, dict) else str(result)

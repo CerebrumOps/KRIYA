@@ -7,8 +7,10 @@
 
 import logging
 import re
-from typing import List, Optional
-from fastapi import APIRouter, HTTPException
+from typing import Any, Dict, List, Optional
+from fastapi import APIRouter, Depends, HTTPException
+
+from backend.api.session import get_optional_session
 
 from backend.database.kriya_db.request.conversation_db import (
     create_conversation,
@@ -78,37 +80,52 @@ def parse_exchange_for_titling(user_message: str, raw_assistant_response: str) -
 
 
 @router.post("", response_model=ConversationDetail)
-async def create_new_conversation(payload: Optional[CreateConversationRequest] = None):
+async def create_new_conversation(
+    payload: Optional[CreateConversationRequest] = None,
+    session: Optional[Dict[str, Any]] = Depends(get_optional_session)
+):
     """
-    Creates a new conversation with an empty name in PostgreSQL.
+    Creates a new conversation with an empty name in PostgreSQL associated with the current user.
     """
     custom_id = payload.custom_id if payload else None
-    conv = await create_conversation(custom_id)
+    employee_id = session.get("employee_id") if session else None
+    conv = await create_conversation(custom_id, employee_id=employee_id)
     return conv
 
 
 @router.get("", response_model=List[ConversationListItem])
-async def get_all_conversations():
+async def get_all_conversations(
+    session: Optional[Dict[str, Any]] = Depends(get_optional_session)
+):
     """
-    Lists all saved conversations for the frontend chats panel.
-    Returns only ID and name (content is queried only when clicking a specific chat).
+    Lists saved conversations for the active user's chats panel.
+    Returns only ID and name.
     """
-    return await list_conversations(limit=50)
+    employee_id = session.get("employee_id") if session else None
+    return await list_conversations(employee_id=employee_id, limit=50)
 
 
 @router.get("/{conv_id}", response_model=ConversationDetail)
-async def get_single_conversation(conv_id: str):
+async def get_single_conversation(
+    conv_id: str,
+    session: Optional[Dict[str, Any]] = Depends(get_optional_session)
+):
     """
     Retrieves full message history for a conversation from PostgreSQL.
     """
-    conv = await get_conversation(conv_id)
+    employee_id = session.get("employee_id") if session else None
+    conv = await get_conversation(conv_id, employee_id=employee_id)
     if not conv:
         raise HTTPException(status_code=404, detail="Conversation not found")
     return conv
 
 
 @router.post("/{conv_id}/messages")
-async def save_message_exchange(conv_id: str, payload: AppendExchangeRequest):
+async def save_message_exchange(
+    conv_id: str,
+    payload: AppendExchangeRequest,
+    session: Optional[Dict[str, Any]] = Depends(get_optional_session)
+):
     """
     Appends a completed user + assistant exchange into PostgreSQL.
     """
@@ -116,7 +133,8 @@ async def save_message_exchange(conv_id: str, payload: AppendExchangeRequest):
         {"role": "user", "content": payload.user_message},
         {"role": "assistant", "content": payload.assistant_response}
     ]
-    success = await append_messages_to_conversation(conv_id, new_messages)
+    employee_id = session.get("employee_id") if session else None
+    success = await append_messages_to_conversation(conv_id, new_messages, employee_id=employee_id)
     return {"status": "success" if success else "failed"}
 
 

@@ -56,6 +56,7 @@ export interface SendRegistrationOtpResponse {
   otpSent: boolean;
   maskedEmail: string;
   expiresInSeconds: number;
+  devOtp?: string;
   message?: string;
 }
 
@@ -111,6 +112,7 @@ export interface LoginCredentialsResponse {
   verificationId: string;
   maskedEmail: string;
   expiresInSeconds: number;
+  devOtp?: string;
   message?: string;
 }
 
@@ -137,6 +139,7 @@ export interface VerifyLoginOtpResponse {
   authenticated: boolean;
   accessToken: string;
   tokenType: string;
+  sessionId?: string;
   expiresIn: number;
   employee: Employee;
   access: SafeEmployeeAccess;
@@ -170,4 +173,187 @@ export interface AuthErrorDetail {
 
 export interface AuthErrorResponse {
   error: AuthErrorDetail;
+}
+
+/* ==========================================================================
+   5. CLIENT API CALLERS & STORAGE HELPERS
+   ========================================================================== */
+
+const RAW_BACKEND_URL: string = (import.meta as any).env?.VITE_BACKEND_URL || '';
+const BACKEND_URL: string = RAW_BACKEND_URL.replace(/\/+$/, '');
+
+async function handleResponse<T>(res: Response): Promise<T> {
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const errorMsg = data?.error?.message || `Request failed with status ${res.status}`;
+    const err = new Error(errorMsg) as Error & { code?: string; status: number };
+    err.code = data?.error?.code || 'API_ERROR';
+    err.status = res.status;
+    throw err;
+  }
+  return data as T;
+}
+
+export async function fetchEmployeeDetails(
+  req: FetchEmployeeDetailsRequest,
+  backendUrl: string = BACKEND_URL
+): Promise<FetchEmployeeDetailsResponse> {
+  const res = await fetch(`${backendUrl}${AUTH_ENDPOINTS.REGISTER_EMPLOYEE}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(req),
+  });
+  return handleResponse<FetchEmployeeDetailsResponse>(res);
+}
+
+export async function sendRegistrationOtp(
+  req: SendRegistrationOtpRequest,
+  backendUrl: string = BACKEND_URL
+): Promise<SendRegistrationOtpResponse> {
+  const res = await fetch(`${backendUrl}${AUTH_ENDPOINTS.REGISTER_SEND_OTP}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(req),
+  });
+  return handleResponse<SendRegistrationOtpResponse>(res);
+}
+
+export async function verifyRegistrationOtp(
+  req: VerifyRegistrationOtpRequest,
+  backendUrl: string = BACKEND_URL
+): Promise<VerifyRegistrationOtpResponse> {
+  const res = await fetch(`${backendUrl}${AUTH_ENDPOINTS.REGISTER_VERIFY_OTP}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(req),
+  });
+  return handleResponse<VerifyRegistrationOtpResponse>(res);
+}
+
+export async function setRegistrationPassword(
+  req: SetRegistrationPasswordRequest,
+  backendUrl: string = BACKEND_URL
+): Promise<SetRegistrationPasswordResponse> {
+  const res = await fetch(`${backendUrl}${AUTH_ENDPOINTS.REGISTER_SET_PASSWORD}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(req),
+  });
+  return handleResponse<SetRegistrationPasswordResponse>(res);
+}
+
+export async function loginCredentials(
+  req: LoginCredentialsRequest,
+  backendUrl: string = BACKEND_URL
+): Promise<LoginCredentialsResponse> {
+  const res = await fetch(`${backendUrl}${AUTH_ENDPOINTS.LOGIN}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(req),
+  });
+  return handleResponse<LoginCredentialsResponse>(res);
+}
+
+export async function verifyLoginOtp(
+  req: VerifyLoginOtpRequest,
+  backendUrl: string = BACKEND_URL
+): Promise<VerifyLoginOtpResponse> {
+  const res = await fetch(`${backendUrl}${AUTH_ENDPOINTS.LOGIN_VERIFY_OTP}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(req),
+  });
+  return handleResponse<VerifyLoginOtpResponse>(res);
+}
+
+// Session & Local Storage Management
+const AUTH_TOKEN_KEY = 'kriya_auth_token';
+const AUTH_EMPLOYEE_KEY = 'kriya_auth_employee';
+const AUTH_ACCESS_KEY = 'kriya_auth_access';
+const AUTH_SESSION_ID_KEY = 'kriya_auth_session_id';
+
+export function storeAuthSession(auth: VerifyLoginOtpResponse): void {
+  try {
+    localStorage.setItem(AUTH_TOKEN_KEY, auth.accessToken);
+    localStorage.setItem(AUTH_EMPLOYEE_KEY, JSON.stringify(auth.employee));
+    if (auth.sessionId) {
+      localStorage.setItem(AUTH_SESSION_ID_KEY, auth.sessionId);
+    }
+    if (auth.access) {
+      localStorage.setItem(AUTH_ACCESS_KEY, JSON.stringify(auth.access));
+    }
+  } catch (e) {
+    console.warn('Failed to persist auth session to localStorage', e);
+  }
+}
+
+export function getStoredAuthToken(): string | null {
+  try {
+    return localStorage.getItem(AUTH_TOKEN_KEY);
+  } catch {
+    return null;
+  }
+}
+
+export function getStoredSessionId(): string | null {
+  try {
+    return localStorage.getItem(AUTH_SESSION_ID_KEY);
+  } catch {
+    return null;
+  }
+}
+
+export function getAuthHeaders(): Record<string, string> {
+  const token = getStoredAuthToken();
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+  return headers;
+}
+
+export function getStoredEmployee(): Employee | null {
+  try {
+    const raw = localStorage.getItem(AUTH_EMPLOYEE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+export function getStoredAccess(): SafeEmployeeAccess | null {
+  try {
+    const raw = localStorage.getItem(AUTH_ACCESS_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+export function clearAuthSession(): void {
+  try {
+    localStorage.removeItem(AUTH_TOKEN_KEY);
+    localStorage.removeItem(AUTH_EMPLOYEE_KEY);
+    localStorage.removeItem(AUTH_ACCESS_KEY);
+    localStorage.removeItem(AUTH_SESSION_ID_KEY);
+  } catch (e) {
+    console.warn('Failed to clear auth session', e);
+  }
+}
+
+export async function logoutSession(): Promise<void> {
+  const sessionId = getStoredSessionId();
+  try {
+    const rawUrl: string = (import.meta as any).env?.VITE_BACKEND_URL || '';
+    const backendUrl = rawUrl.replace(/\/+$/, '');
+    await fetch(`${backendUrl}/api/auth/logout`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ session_id: sessionId }),
+    });
+  } catch (e) {
+    console.warn('Backend logout failed:', e);
+  }
 }

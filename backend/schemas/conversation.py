@@ -26,6 +26,7 @@ class ConversationSummary(ConversationListItem):
 class ConversationDetail(BaseModel):
     id: str
     name: str = Field("New Chat", description="Title of the conversation")
+    employee_id: Optional[str] = Field(None, description="Owner employee ID")
     messages: List[Dict[str, Any]] = Field(default_factory=list, description="All message exchanges")
     created_at: Optional[str] = None
     updated_at: Optional[str] = None

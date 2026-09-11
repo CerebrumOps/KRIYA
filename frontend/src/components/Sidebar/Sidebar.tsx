@@ -10,9 +10,11 @@ import {
 } from 'lucide-react';
 import NewChat from './NewChat';
 import ChatHistory, { HistoryItem } from './ChatHistory';
+import { Employee } from '../../schemas/employee';
 import './Sidebar.css';
 
 export interface SidebarProps {
+  currentUser?: Employee | null;
   history?: HistoryItem[];
   activeChatId?: string | null;
   theme?: 'light' | 'dark';
@@ -26,6 +28,7 @@ export interface SidebarProps {
 }
 
 export default function Sidebar({ 
+  currentUser = null,
   history = [], 
   activeChatId = null, 
   theme = 'light',
@@ -95,15 +98,27 @@ export default function Sidebar({
         <div className="user-profile-card">
           <div className="user-avatar-wrap">
             <div className="user-avatar-placeholder">
-              <span>OP</span>
+              <span>
+                {currentUser?.employeeName
+                  ? currentUser.employeeName
+                      .split(' ')
+                      .filter(Boolean)
+                      .map((n) => n[0])
+                      .slice(0, 2)
+                      .join('')
+                      .toUpperCase()
+                  : 'OP'}
+              </span>
             </div>
             <span className="user-status-dot" title="Air-Gapped | Secure" />
           </div>
           <div className="user-info-text">
             <div className="user-name-row">
-              <span className="user-name">MRPL Operations</span>
+              <span className="user-name">{currentUser?.employeeName || 'MRPL Operations'}</span>
             </div>
-            <span className="user-meta">engineer@mrpl.co.in</span>
+            <span className="user-meta" title={currentUser?.companyEmail || currentUser?.designation || 'engineer@mrpl.co.in'}>
+              {currentUser?.companyEmail || currentUser?.designation || 'engineer@mrpl.co.in'}
+            </span>
           </div>
           {onSignOut ? (
             <button

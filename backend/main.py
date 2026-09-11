@@ -11,6 +11,11 @@ if str(root_dir) not in sys.path:
 
 from backend.api.webchat_routes import router as webchat_router
 from backend.api.conversation_routes import router as conversation_router
+from backend.api.auth_routes import router as auth_router
+from backend.api.company_routes import router as company_router
+from backend.api.plan_routes import router as plan_router
+from backend.api.admin_routes import router as admin_router
+from backend.api.workspace_routes import router as workspace_router
 
 app = FastAPI(
     title="KRIYA - Sovereign Industrial AI Workbench",
@@ -30,17 +35,31 @@ app.add_middleware(
 # Include API routes
 app.include_router(webchat_router)
 app.include_router(conversation_router)
+app.include_router(auth_router)
+app.include_router(company_router)
+app.include_router(plan_router)
+app.include_router(admin_router)
+app.include_router(workspace_router)
 
-# Serve the single-file React HTML frontend directly from the server
-FRONTEND_INDEX_PATH = root_dir / "frontend" / "index.html"
+# Mount frontend dist assets if present
+FRONTEND_DIST_PATH = root_dir / "frontend" / "dist"
+FRONTEND_DIST_INDEX = FRONTEND_DIST_PATH / "index.html"
+FRONTEND_DEV_INDEX = root_dir / "frontend" / "index.html"
+
+from fastapi.staticfiles import StaticFiles
+if (FRONTEND_DIST_PATH / "assets").exists():
+    app.mount("/assets", StaticFiles(directory=str(FRONTEND_DIST_PATH / "assets")), name="assets")
 
 
 @app.get("/", response_class=HTMLResponse)
 @app.get("/ui", response_class=HTMLResponse)
 def serve_ui():
     """Serves the single-page React frontend."""
-    if FRONTEND_INDEX_PATH.exists():
-        with open(FRONTEND_INDEX_PATH, "r", encoding="utf-8") as f:
+    if FRONTEND_DIST_INDEX.exists():
+        with open(FRONTEND_DIST_INDEX, "r", encoding="utf-8") as f:
+            return HTMLResponse(content=f.read())
+    elif FRONTEND_DEV_INDEX.exists():
+        with open(FRONTEND_DEV_INDEX, "r", encoding="utf-8") as f:
             return HTMLResponse(content=f.read())
     return HTMLResponse("<h2>Frontend index.html not found yet.</h2>", status_code=404)
 

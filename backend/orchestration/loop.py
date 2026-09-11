@@ -18,16 +18,27 @@ from backend.api.model_client import get_openai_client
 from backend.orchestration.tool_handler import handle_single_tool_call
 from backend.registries.tools_registry import TOOLS_SCHEMA
 from backend.schemas.model_request import ChatMessage, ModelRequest
+from backend.subagents.task_queue import update_checklist_by_tool
 
 
-# KRIYA Industrial System Prompt for MRPL
+# KRIYA Industrial Sovereign System Prompt for MRPL
 SYSTEM_PROMPT = (
-    "You are KRIYA, a sovereign AI workbench assistant for confidential industrial "
-    "work at Mangalore Refinery and Petrochemicals Limited (MRPL). "
-    "You have access to local on-premise tools including 'execute_terminal_command'. "
-    "When a user asks to check files, directories, run calculations, or inspect the system, "
-    "use your tools to verify facts before answering. "
-    "Always maintain plant safety standards and provide clear, professional engineering analysis."
+    "You are KRIYA, a sovereign On-Premise Multi-Agentic AI Workbench designed for confidential "
+    "industrial work at Mangalore Refinery and Petrochemicals Limited (MRPL).\n\n"
+    "1. SOVEREIGN INTEGRITY & SAFETY: Operate with zero cloud dependence. Maintain MRPL process safety "
+    "standards at all times. Prioritize verifiable engineering facts over speculation.\n"
+    "2. PROGRESSIVE SKILL DISCOVERY: To prevent context window flooding, specialized guidelines and tool "
+    "protocols are organized into the workbench skills directory. Use `list_available_skills()` and "
+    "`load_skill(skill_name)` (e.g. 'inspection-report', 'code-sandbox', 'pid-inspection', "
+    "'management-presentation') to load specific domain instructions and tools on-demand.\n"
+    "3. ON-PREMISE SANDBOX & AUTONOMOUS REPAIR: When tasked with coding, author scripts and unit tests, "
+    "execute them inside the isolated environment using `run_code_in_sandbox`. If an assertion or traceback occurs, "
+    "analyze stderr, patch the code, and rerun until all tests pass.\n"
+    "4. HUMAN-IN-THE-LOOP AIR-GAP RESTRICTIONS: In an air-gapped refinery, external internet web search "
+    "(`search_duckduckgo`) is restricted. Always confirm with the operator before querying the public internet.\n"
+    "5. DELIVERABLES & CONSISTENCY: You can author Microsoft Word approval notes (`generate_docx_approval_note`), "
+    "Excel cost spreadsheets (`generate_xlsx_cost_workbook`), and PowerPoint decks (`generate_pptx_deck`). "
+    "Always run `verify_artifact_consistency` to ensure cross-deliverable numerical synchronization."
 )
 
 
@@ -58,13 +69,13 @@ def run_agent_loop_stream(
     thinking: bool = False,
     model: str = "default",
     temperature: float = 0.2,
-    max_steps: int = 5
+    max_steps: int = 20
 ) -> Generator[str, None, None]:
     """
     The core agent execution loop for streaming web responses.
     Iterates up to `max_steps` to handle multi-step tool calls.
     Yields:
-      - `<think>...</think>` tags for reasoning
+      - `<think>...</think>` tags for reasoning (including inline `<number>[TOOL CALL]` markers)
       - `<tool_call>...</tool_call>` tags when executing tools
       - `<tool_result>...</tool_result>` tags with tool outputs
       - Text tokens for the final response
@@ -84,6 +95,9 @@ def run_agent_loop_stream(
     total_predicted_ms = 0.0
     total_prompt_tokens = 0
     latest_speed = None
+    total_tool_calls_count = 0
+    tools_executed = False
+    has_final_content = False
 
     # Multi-step loop (runs until model finishes or reaches max_steps)
     for step in range(max_steps):
@@ -207,6 +221,7 @@ def run_agent_loop_stream(
 
         # Check if any tools were called
         if tool_calls_map:
+            tools_executed = True
             # Build assistant message with tool calls to preserve history for next step
             assistant_tool_calls = []
             for idx in sorted(tool_calls_map.keys()):
@@ -228,9 +243,13 @@ def run_agent_loop_stream(
 
             # Execute each tool locally and yield tool events to frontend
             for idx in sorted(tool_calls_map.keys()):
+                total_tool_calls_count += 1
                 t = tool_calls_map[idx]
                 fn_name = t["name"]
                 fn_args = t["arguments"]
+
+                # Inline marker inside reasoning so user sees <number>[TOOL CALL] in thinking trace
+                yield f"<think>\n\n{total_tool_calls_count}[TOOL CALL: {fn_name}]\n\n</think>\n"
 
                 # Notify frontend that tool execution started
                 yield f"\n<tool_call name=\"{fn_name}\" args='{fn_args}'>\n"
@@ -242,6 +261,12 @@ def run_agent_loop_stream(
                 })
                 output_str = tool_data["result"]
 
+                # Update active task queue checklist if a matching step is running
+                try:
+                    update_checklist_by_tool(fn_name, status="success")
+                except Exception:
+                    pass
+
                 # Notify frontend of tool output
                 yield f"</tool_call>\n<tool_result name=\"{fn_name}\">\n{output_str}\n</tool_result>\n\n"
 
@@ -252,8 +277,94 @@ def run_agent_loop_stream(
             continue
 
         else:
-            # No tool calls: tokens were streamed directly to frontend in real time!
+            # No tool calls: if content was generated, mark final content as complete
+            if accumulated_content.strip():
+                has_final_content = True
             break
+
+    # Mandatory Final Synthesis Step:
+    # If tools were executed but no final synthesized response text was emitted,
+    # invoke the model once more with tools=None to force comprehensive final answer!
+    if tools_executed and not has_final_content:
+        synth_start_time = time.perf_counter()
+        synth_messages = list(messages)
+        synth_messages.append({
+            "role": "user",
+            "content": (
+                "Execution phase is complete. All necessary tool actions, database queries, and calculations have concluded. "
+                "Provide your complete, comprehensive final engineering report for the plant operator based on the tool findings and deliverables above. "
+                "Present key findings, numerical calculations, compliance verifications, and operational recommendations. "
+                "Do not request further tool execution; deliver the full final report now."
+            )
+        })
+
+        synth_stream = client.chat.completions.create(
+            model=model or "default",
+            messages=synth_messages,
+            tools=None,
+            temperature=temperature,
+            stream=True,
+            stream_options={"include_usage": True},
+            extra_body=extra_body if extra_body else None
+        )
+
+        in_reasoning = False
+        synth_predicted_tokens = 0
+        synth_predicted_ms = None
+        synth_prompt_tokens = 0
+        synth_streamed_count = 0
+
+        for chunk in synth_stream:
+            extra = getattr(chunk, "model_extra", {}) or {}
+            timings = extra.get("timings", {}) or {}
+            if timings:
+                if timings.get("predicted_n") is not None:
+                    synth_predicted_tokens = timings["predicted_n"]
+                if timings.get("predicted_ms") is not None:
+                    synth_predicted_ms = timings["predicted_ms"]
+                if timings.get("prompt_n") is not None:
+                    synth_prompt_tokens = timings["prompt_n"]
+
+            usage = getattr(chunk, "usage", None)
+            if usage:
+                if getattr(usage, "completion_tokens", None) is not None:
+                    synth_predicted_tokens = usage.completion_tokens
+                if getattr(usage, "prompt_tokens", None) is not None:
+                    synth_prompt_tokens = usage.prompt_tokens
+
+            if not chunk.choices:
+                continue
+
+            choice = chunk.choices[0]
+            delta = choice.delta
+
+            reasoning_chunk = getattr(delta, "reasoning_content", None)
+            if reasoning_chunk and thinking:
+                if not in_reasoning:
+                    in_reasoning = True
+                    yield "<think>\n"
+                synth_streamed_count += 1
+                yield reasoning_chunk
+
+            content_chunk = delta.content
+            if content_chunk:
+                if in_reasoning:
+                    in_reasoning = False
+                    yield "\n</think>\n\n"
+                synth_streamed_count += 1
+                yield content_chunk
+
+        if in_reasoning:
+            in_reasoning = False
+            yield "\n</think>\n\n"
+
+        synth_elapsed_ms = (time.perf_counter() - synth_start_time) * 1000
+        total_predicted_tokens += (synth_predicted_tokens or synth_streamed_count)
+        total_predicted_ms += (synth_predicted_ms or synth_elapsed_ms)
+        if synth_prompt_tokens > 0:
+            total_prompt_tokens += synth_prompt_tokens
+        if total_predicted_ms > 0 and total_predicted_tokens > 0:
+            latest_speed = total_predicted_tokens / (total_predicted_ms / 1000.0)
 
     # Emit exact llamacpp metadata block at the conclusion of the stream
     metadata_payload = json.dumps({
@@ -271,7 +382,7 @@ def run_agent_loop(
     thinking: bool = False,
     model: str = "default",
     temperature: float = 0.2,
-    max_steps: int = 5
+    max_steps: int = 20
 ) -> Dict[str, Any]:
     """
     Non-streaming agent loop returning complete aggregated output dictionary with

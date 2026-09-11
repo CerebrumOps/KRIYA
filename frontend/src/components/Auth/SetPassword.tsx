@@ -1,12 +1,17 @@
 import React, { useState } from 'react';
-import { Lock, Eye, EyeOff, CheckCircle2, ShieldCheck, ArrowLeft, ArrowRight } from 'lucide-react';
+import { Lock, Eye, EyeOff, CheckCircle2, ShieldCheck, ArrowLeft, ArrowRight, AlertCircle } from 'lucide-react';
+import { setRegistrationPassword } from '../../api/auth_api';
 
 export interface SetPasswordProps {
+  employeeId?: string;
+  verificationToken?: string;
   onBackToVerification: () => void;
   onSwitchToLogin: () => void;
 }
 
 export default function SetPassword({
+  employeeId,
+  verificationToken,
   onBackToVerification,
   onSwitchToLogin,
 }: SetPasswordProps) {
@@ -16,6 +21,7 @@ export default function SetPassword({
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   // Dynamic visual requirement checks for demonstration
   const reqLength = newPassword.length >= 8;
@@ -24,19 +30,41 @@ export default function SetPassword({
   const reqSpecial = /[@$!%*?&#^()_-]/.test(newPassword);
   const passwordsMatch = newPassword.length > 0 && newPassword === confirmPassword;
 
-  const handleSetPassword = (e: React.FormEvent) => {
+  const handleSetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsSubmitting(true);
+    setErrorMessage(null);
 
-    // Provide visual demonstration success state
-    setTimeout(() => {
-      setIsSubmitting(false);
+    if (!reqLength || !reqUpper || !reqNumber || !reqSpecial) {
+      setErrorMessage('Password must be at least 8 characters with 1 uppercase, 1 digit, and 1 special symbol.');
+      return;
+    }
+
+    if (!passwordsMatch) {
+      setErrorMessage('Passwords do not match.');
+      return;
+    }
+
+    if (!employeeId || !verificationToken) {
+      setErrorMessage('Missing registration verification token. Please restart verification.');
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      await setRegistrationPassword({
+        employeeId,
+        password: newPassword,
+        verificationToken,
+      });
       setIsSuccess(true);
-      // After demonstrating success, return to login mode
       setTimeout(() => {
         onSwitchToLogin();
       }, 1600);
-    }, 600);
+    } catch (err: any) {
+      setErrorMessage(err.message || 'Failed to set enterprise password.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   if (isSuccess) {
@@ -90,6 +118,13 @@ export default function SetPassword({
           Create an enterprise password to secure your workstation access.
         </p>
       </div>
+
+      {errorMessage && (
+        <div style={{ padding: '8px 12px', marginBottom: 12, backgroundColor: 'rgba(239, 68, 68, 0.12)', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: 6, color: '#ef4444', fontSize: 13, display: 'flex', alignItems: 'center', gap: 8 }}>
+          <AlertCircle size={15} />
+          <span>{errorMessage}</span>
+        </div>
+      )}
 
       <form className="auth-form" onSubmit={handleSetPassword}>
         {/* New Password Input */}

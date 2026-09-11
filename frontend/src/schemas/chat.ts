@@ -16,6 +16,7 @@ export interface WebChatRequest {
   thinking?: boolean;
   model?: string;
   temperature?: number;
+  conversation_id?: string;
 }
 
 export interface WebChatResponse {

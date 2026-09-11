@@ -9,6 +9,7 @@ import {
   ConversationDetail,
   GenerateTitleResponse,
 } from '../schemas/conversation';
+import { getAuthHeaders } from './auth_api';
 
 // Backend endpoint configured strictly from .env via Vite
 const RAW_BACKEND_URL: string = import.meta.env.VITE_BACKEND_URL || '';
@@ -22,7 +23,7 @@ export async function createConversation(
 ): Promise<ConversationDetail> {
   const res = await fetch(`${backendUrl}/api/conversations`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: getAuthHeaders(),
     body: JSON.stringify({}),
   });
   if (!res.ok) throw new Error(`Failed to create conversation: ${res.status}`);
@@ -30,13 +31,14 @@ export async function createConversation(
 }
 
 /**
- * Lists all conversations for the chats panel (returns strictly ID and name,
- * content is only loaded when user clicks a particular chat).
+ * Lists all conversations for the chats panel scoped to active user.
  */
 export async function listConversations(
   backendUrl: string = BACKEND_URL
 ): Promise<ConversationListItem[]> {
-  const res = await fetch(`${backendUrl}/api/conversations`);
+  const res = await fetch(`${backendUrl}/api/conversations`, {
+    headers: getAuthHeaders(),
+  });
   if (!res.ok) throw new Error(`Failed to list conversations: ${res.status}`);
   return await res.json();
 }
@@ -49,7 +51,9 @@ export async function getConversation(
   convId: string,
   backendUrl: string = BACKEND_URL
 ): Promise<ConversationDetail> {
-  const res = await fetch(`${backendUrl}/api/conversations/${convId}`);
+  const res = await fetch(`${backendUrl}/api/conversations/${convId}`, {
+    headers: getAuthHeaders(),
+  });
   if (!res.ok) throw new Error(`Failed to get conversation ${convId}: ${res.status}`);
   return await res.json();
 }
@@ -65,7 +69,7 @@ export async function saveMessageExchange(
 ): Promise<void> {
   const res = await fetch(`${backendUrl}/api/conversations/${convId}/messages`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: getAuthHeaders(),
     body: JSON.stringify({
       user_message: userMessage,
       assistant_response: assistantResponse,
@@ -85,7 +89,7 @@ export async function generateConversationTitle(
 ): Promise<string> {
   const res = await fetch(`${backendUrl}/api/conversations/${convId}/generate-title`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: getAuthHeaders(),
     body: JSON.stringify({
       user_message: userMessage,
       assistant_response: assistantResponse,
@@ -105,6 +109,7 @@ export async function deleteConversation(
 ): Promise<void> {
   const res = await fetch(`${backendUrl}/api/conversations/${convId}`, {
     method: 'DELETE',
+    headers: getAuthHeaders(),
   });
   if (!res.ok) throw new Error(`Failed to delete conversation: ${res.status}`);
 }
