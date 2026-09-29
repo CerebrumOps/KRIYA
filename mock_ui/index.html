@@ -7,31 +7,32 @@
   <style>
     :root {
       --bg-desktop: #000000;
-      --bg-window: #0f0f12;
+      --bg-window: #111114;
       --bg-sidebar: #131317;
-      --bg-chat: #0f0f12;
-      --bg-panel: #131317;
-      --bg-user-bubble: #1e1e24;
-      --bg-input: #1a1a20;
-      --bg-input-border: #282832;
-      --bg-pill: #25252e;
-      --bg-active-chat: #22222b;
-      --border-subtle: #202027;
-      --border-panel: #1b1b22;
+      --bg-center: #111114;
+      --bg-right-panel: #131317;
       
-      --text-main: #f0f0f3;
-      --text-muted: #8e8e98;
-      --text-dim: #5c5c66;
+      --bg-user-bubble: #1a1a20;
+      --bg-input-box: #1a1a20;
+      --border-input: #262630;
+      --bg-pill: #22222a;
+      --border-pill: #2e2e3a;
+      
+      --border-subtle: #1c1c23;
+      --border-sidebar: #1a1a22;
+      
+      --text-primary: #e6e6eb;
+      --text-secondary: #909099;
+      --text-dim: #555560;
       --text-link: #3b82f6;
       
-      --blue-accent: #0076ff;
-      --blue-accent-hover: #0068e0;
-      --blue-tag: #38bdf8;
-      --green-status: #10b981;
-      --red-accent: #ef4444;
-      --purple-accent: #a855f7;
+      --accent-blue: #007aff;
+      --accent-blue-hover: #006ce0;
+      --accent-cyan: #38bdf8;
+      --accent-red: #ef4444;
+      --accent-green: #10b981;
       
-      --font-system: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      --font-ui: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
       --font-mono: "JetBrains Mono", Consolas, "SF Mono", Menlo, monospace;
     }
 
@@ -39,8 +40,8 @@
 
     body {
       background-color: var(--bg-desktop);
-      color: var(--text-main);
-      font-family: var(--font-system);
+      color: var(--text-primary);
+      font-family: var(--font-ui);
       font-size: 13px;
       line-height: 1.45;
       height: 100vh;
@@ -51,48 +52,48 @@
       user-select: none;
     }
 
-    /* TOP OS STATUS BAR (ARCH/LINUX STYLE) */
-    .os-topbar {
-      height: 24px;
+    /* ========================================================
+       TOP OS STATUS BAR (EXACT LINUX BAR FROM SCREENSHOT)
+       ======================================================== */
+    .os-bar {
+      height: 22px;
       background: #000000;
       display: flex;
       align-items: center;
       justify-content: space-between;
       padding: 0 14px;
       font-size: 11px;
-      color: #9ca3af;
+      color: #94a3b8;
       font-family: var(--font-mono);
-      border-bottom: 1px solid #141416;
+      border-bottom: 1px solid #101014;
     }
 
-    .os-workspaces {
+    .os-bar-left {
       display: flex;
       align-items: center;
       gap: 12px;
     }
-    .os-workspaces .ws-num {
-      color: #e5e7eb;
-      font-weight: 700;
-    }
-    .os-workspaces .ws-dim { color: #4b5563; }
+    .os-bar-left .num-active { color: #f1f5f9; font-weight: 700; }
+    .os-bar-left .num-idle { color: #475569; }
 
-    .os-clock {
-      color: #d1d5db;
-      font-weight: 600;
+    .os-bar-center {
+      color: #e2e8f0;
+      font-weight: 500;
     }
 
-    .os-tray {
+    .os-bar-right {
       display: flex;
       align-items: center;
-      gap: 10px;
-      color: #9ca3af;
+      gap: 8px;
     }
 
-    /* APP TOP MENU BAR */
-    .app-menubar {
-      height: 38px;
-      background: #111115;
-      border-bottom: 1px solid var(--border-panel);
+    /* ========================================================
+       APPLICATION WINDOW HEADER
+       ======================================================== */
+    .app-header {
+      height: 36px;
+      background: #111114;
+      border-bottom: 1px solid var(--border-subtle);
       display: flex;
       align-items: center;
       justify-content: space-between;
@@ -100,84 +101,55 @@
       font-size: 12.5px;
     }
 
-    .menubar-left {
+    .app-header-left {
       display: flex;
       align-items: center;
-      gap: 18px;
+      gap: 16px;
     }
 
-    .app-brand {
+    .app-title {
       font-weight: 700;
       color: #ffffff;
-      letter-spacing: 0.6px;
-      display: flex;
-      align-items: center;
-      gap: 7px;
-    }
-
-    .app-brand-badge {
-      width: 18px;
-      height: 18px;
-      background: linear-gradient(135deg, #2563eb, #1d4ed8);
-      border-radius: 4px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-weight: 900;
-      font-size: 11px;
-      color: #fff;
-    }
-
-    .menu-items {
-      display: flex;
-      align-items: center;
-      gap: 14px;
-      color: var(--text-muted);
-    }
-    .menu-items span:hover { color: #fff; cursor: pointer; }
-
-    .menubar-right {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-
-    .badge-sovereign {
       display: flex;
       align-items: center;
       gap: 6px;
-      font-size: 10.5px;
-      font-family: var(--font-mono);
-      background: rgba(16, 185, 129, 0.12);
-      border: 1px solid rgba(16, 185, 129, 0.3);
-      color: #34d399;
-      padding: 2px 8px;
-      border-radius: 999px;
-    }
-    .badge-sovereign .dot {
-      width: 6px;
-      height: 6px;
-      border-radius: 50%;
-      background: #10b981;
-      box-shadow: 0 0 6px #10b981;
+      letter-spacing: 0.5px;
     }
 
-    /* 3-COLUMN WORKBENCH CONTAINER */
-    .workbench-body {
+    .menu-options {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      color: var(--text-secondary);
+    }
+    .menu-options span:hover { color: #fff; cursor: pointer; }
+
+    .app-header-right {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      color: var(--text-secondary);
+      font-size: 12px;
+    }
+
+    /* ========================================================
+       3-COLUMN WORKBENCH GRID
+       ======================================================== */
+    .workbench-grid {
       flex: 1;
       display: grid;
-      grid-template-columns: 240px 1fr 370px;
-      height: calc(100vh - 62px);
+      grid-template-columns: 240px 1fr 380px;
+      height: calc(100vh - 58px);
       overflow: hidden;
       background: var(--bg-window);
     }
 
     /* ========================================================
-       LEFT SIDEBAR (EXACT MATCH TO REFERENCE)
+       LEFT SIDEBAR (1:1 FIDELITY TO REFERENCE SCREENSHOT)
        ======================================================== */
     aside.sidebar {
       background: var(--bg-sidebar);
-      border-right: 1px solid var(--border-panel);
+      border-right: 1px solid var(--border-sidebar);
       display: flex;
       flex-direction: column;
       height: 100%;
@@ -188,38 +160,38 @@
       display: flex;
       align-items: center;
       gap: 10px;
-      padding: 10px 12px;
-      color: var(--text-muted);
+      padding: 10px 14px;
+      color: var(--text-secondary);
     }
 
-    .icon-k-logo {
+    .icon-kriya-a {
       font-weight: 900;
-      font-size: 15px;
+      font-size: 14px;
       color: #ffffff;
-      margin-right: 4px;
+      margin-right: 2px;
     }
 
-    .sidebar-nav-btn {
+    .sidebar-btn {
       display: flex;
       align-items: center;
-      gap: 9px;
-      padding: 7px 12px;
-      margin: 2px 8px;
+      gap: 8px;
+      padding: 6px 12px;
+      margin: 1px 8px;
       border-radius: 6px;
-      color: var(--text-muted);
+      color: var(--text-secondary);
       cursor: pointer;
       font-size: 12.5px;
     }
-    .sidebar-nav-btn:hover { background: #1c1c22; color: #fff; }
-    .sidebar-nav-btn.primary { color: #fff; font-weight: 500; }
+    .sidebar-btn:hover { background: #1a1a21; color: #fff; }
+    .sidebar-btn.primary { color: #ffffff; font-weight: 500; }
 
-    .sidebar-divider {
+    .sidebar-sep {
       height: 1px;
       background: var(--border-subtle);
       margin: 8px 12px;
     }
 
-    .projects-header {
+    .section-title-row {
       display: flex;
       align-items: center;
       justify-content: space-between;
@@ -228,53 +200,52 @@
       color: var(--text-dim);
       font-weight: 600;
     }
-    .projects-header-icons {
+
+    .section-icons {
       display: flex;
       align-items: center;
       gap: 8px;
+      color: var(--text-dim);
     }
 
-    .project-folder-row {
+    .folder-row {
       display: flex;
       align-items: center;
       gap: 6px;
-      padding: 6px 14px;
+      padding: 5px 14px;
       color: #d1d5db;
       font-size: 12px;
       font-weight: 500;
     }
 
-    .chat-history-scroll {
+    .history-list {
       flex: 1;
       overflow-y: auto;
       padding: 0 8px;
     }
 
-    .chat-history-item {
+    .history-item {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 7px 10px;
-      margin-bottom: 2px;
+      padding: 6px 8px;
+      margin-bottom: 1px;
       border-radius: 6px;
       cursor: pointer;
       font-size: 12px;
-      color: #9ca3af;
-      transition: background 0.1s;
+      color: var(--text-secondary);
     }
-
-    .chat-history-item:hover {
-      background: #1c1c22;
-      color: #f3f4f6;
+    .history-item:hover {
+      background: #191921;
+      color: #f1f5f9;
     }
-
-    .chat-history-item.active {
-      background: var(--bg-active-chat);
+    .history-item.active {
+      background: #1e1e26;
       color: #ffffff;
-      font-weight: 600;
+      font-weight: 500;
     }
 
-    .chat-item-title {
+    .history-title {
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -282,7 +253,7 @@
       padding-right: 6px;
     }
 
-    .chat-item-meta {
+    .history-meta {
       font-size: 11px;
       color: var(--text-dim);
       white-space: nowrap;
@@ -291,31 +262,40 @@
       gap: 6px;
     }
 
-    .status-dot-blue {
-      width: 6px;
-      height: 6px;
+    .dot-cyan {
+      width: 5px;
+      height: 5px;
       border-radius: 50%;
-      background: var(--blue-tag);
-      box-shadow: 0 0 6px rgba(56, 189, 248, 0.6);
+      background: var(--accent-cyan);
     }
 
-    .sidebar-footer {
+    .spinner-active {
+      width: 12px;
+      height: 12px;
+      border: 1.5px solid rgba(255, 255, 255, 0.2);
+      border-top-color: #ffffff;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .sidebar-bottom {
       padding: 10px 14px;
-      border-top: 1px solid var(--border-panel);
+      border-top: 1px solid var(--border-sidebar);
       display: flex;
       align-items: center;
       gap: 8px;
-      color: var(--text-muted);
+      color: var(--text-secondary);
       font-size: 12px;
       cursor: pointer;
     }
-    .sidebar-footer:hover { color: #fff; }
+    .sidebar-bottom:hover { color: #fff; }
 
     /* ========================================================
-       CENTER CHAT & REASONING STREAM
+       CENTER MAIN CHAT (EXACT TEXT FLOW FROM SCREENSHOT)
        ======================================================== */
-    main.chat-center {
-      background: var(--bg-chat);
+    main.chat-area {
+      background: var(--bg-center);
       display: flex;
       flex-direction: column;
       height: 100%;
@@ -323,181 +303,147 @@
       overflow: hidden;
     }
 
-    .chat-top-breadcrumb {
-      height: 38px;
-      border-bottom: 1px solid var(--border-panel);
+    .breadcrumb-bar {
+      height: 36px;
+      border-bottom: 1px solid var(--border-subtle);
       display: flex;
       align-items: center;
       justify-content: space-between;
       padding: 0 20px;
       font-size: 12px;
-      color: var(--text-muted);
+      color: var(--text-secondary);
     }
-    .chat-top-breadcrumb span.active-crumb {
+    .breadcrumb-bar span.active-node {
       color: #ffffff;
-      font-weight: 600;
+      font-weight: 500;
     }
 
-    .chat-scroll-area {
+    .messages-viewport {
       flex: 1;
       overflow-y: auto;
-      padding: 24px 28px;
+      padding: 24px 32px;
       display: flex;
       flex-direction: column;
       gap: 20px;
     }
 
-    .chat-user-message-container {
+    /* USER MESSAGE BUBBLE */
+    .user-bubble-container {
       display: flex;
       justify-content: flex-start;
-      margin-bottom: 10px;
     }
 
-    .chat-user-bubble {
+    .user-bubble {
       background: var(--bg-user-bubble);
-      border: 1px solid #282830;
-      border-radius: 10px;
+      border: 1px solid #24242e;
+      border-radius: 12px;
       padding: 14px 18px;
       color: #ededed;
       font-size: 13.5px;
       line-height: 1.5;
-      max-width: 90%;
+      max-width: 88%;
       user-select: text;
     }
 
-    .assistant-stream-container {
+    /* ASSISTANT RESPONSE */
+    .assistant-flow {
       display: flex;
       flex-direction: column;
       gap: 12px;
       user-select: text;
     }
 
-    .assistant-action-icons {
+    .assistant-feedback-icons {
       display: flex;
       justify-content: flex-end;
       gap: 12px;
       color: var(--text-dim);
       font-size: 13px;
-      margin-bottom: 4px;
     }
 
-    /* REASONING & TASK SUMMARY TRACE */
-    .execution-trace-summary {
-      color: #94949e;
+    .trace-title-row {
+      color: var(--text-secondary);
       font-size: 13px;
       display: flex;
       align-items: center;
       gap: 6px;
       cursor: pointer;
     }
-    .execution-trace-summary:hover { color: #fff; }
+    .trace-title-row:hover { color: #fff; }
 
-    .trace-notice {
-      color: #94949e;
+    .trace-notice-line {
+      color: var(--text-secondary);
       font-size: 13px;
-      margin-top: 2px;
     }
 
-    .trace-task-box {
-      margin-top: 8px;
+    .tasks-collapsible {
       display: flex;
       flex-direction: column;
       gap: 4px;
       font-size: 13px;
-      color: #a1a1aa;
+      color: #9ca3af;
+      margin-top: 4px;
     }
 
-    .trace-task-line {
+    .task-entry {
       display: flex;
       align-items: center;
       gap: 6px;
-      color: #9ca3af;
+      color: var(--text-secondary);
     }
+    .task-entry strong { color: #e2e8f0; font-weight: 500; }
 
-    .trace-task-line strong {
-      color: #e5e7eb;
-      font-weight: 500;
-    }
-
-    .trace-status-working {
-      color: #60a5fa;
+    .status-working-text {
+      color: var(--text-secondary);
       font-weight: 500;
       margin-top: 6px;
+      font-size: 13px;
     }
 
-    /* STRUCTURED VERDICT CARD */
-    .verdict-card {
-      background: #141419;
-      border: 1px solid var(--border-subtle);
-      border-radius: 8px;
-      padding: 16px 18px;
-      margin-top: 10px;
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-    }
-
-    .verdict-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      border-bottom: 1px solid #1f1f27;
-      padding-bottom: 8px;
-    }
-
-    .verdict-title {
-      font-weight: 700;
+    /* SYNTHESIZED VERDICT TEXT & COMPACT TABLE */
+    .assistant-prose {
       font-size: 13.5px;
-      color: #f3f4f6;
+      color: #e2e8f0;
+      line-height: 1.6;
+      margin-top: 8px;
     }
 
-    .verdict-badge-risk {
-      background: rgba(239, 68, 68, 0.15);
-      border: 1px solid rgba(239, 68, 68, 0.4);
-      color: #f87171;
-      padding: 2px 8px;
-      border-radius: 4px;
-      font-size: 11px;
-      font-weight: 700;
-    }
-
-    /* TABLE */
-    table.compact-table {
+    table.exec-table {
       width: 100%;
       border-collapse: collapse;
       font-size: 12px;
+      margin: 10px 0;
     }
-    table.compact-table th {
+    table.exec-table th {
       text-align: left;
       color: var(--text-dim);
       font-weight: 600;
       padding: 6px 8px;
       border-bottom: 1px solid #1f1f28;
     }
-    table.compact-table td {
-      padding: 7px 8px;
-      border-bottom: 1px solid #1a1a22;
-      color: #e2e8f0;
+    table.exec-table td {
+      padding: 6px 8px;
+      border-bottom: 1px solid #191922;
+      color: #e5e7eb;
     }
 
-    /* FLOATING INPUT CONTAINER (MATCHING REFERENCE SCREENSHOT) */
-    .floating-input-wrapper {
-      padding: 14px 24px 20px;
-      background: transparent;
+    /* FLOATING INPUT CONTAINER */
+    .input-wrapper {
+      padding: 16px 24px 20px;
     }
 
-    .floating-input-box {
-      background: var(--bg-input);
-      border: 1px solid var(--bg-input-border);
+    .input-card {
+      background: var(--bg-input-box);
+      border: 1px solid var(--border-input);
       border-radius: 12px;
       padding: 12px 16px 8px;
       display: flex;
       flex-direction: column;
       gap: 8px;
-      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
     }
 
-    .input-prompt-text {
+    .input-textarea {
       width: 100%;
       background: transparent;
       border: none;
@@ -507,519 +453,545 @@
       font-family: inherit;
       resize: none;
     }
-
-    .input-prompt-text::placeholder {
+    .input-textarea::placeholder {
       color: var(--text-dim);
     }
 
-    .input-action-row {
+    .input-bottom-bar {
       display: flex;
       align-items: center;
       justify-content: space-between;
       padding-top: 4px;
     }
 
-    .input-left-pills {
+    .input-bar-left {
       display: flex;
       align-items: center;
       gap: 8px;
     }
 
-    .btn-plus-icon {
-      color: var(--text-muted);
-      cursor: pointer;
+    .icon-btn-plus {
+      color: var(--text-secondary);
       font-size: 15px;
+      cursor: pointer;
       display: flex;
       align-items: center;
       justify-content: center;
-      width: 22px;
-      height: 22px;
-      border-radius: 4px;
+      width: 20px;
+      height: 20px;
     }
-    .btn-plus-icon:hover { background: #262630; color: #fff; }
 
-    .model-selector-pill {
+    .model-badge-pill {
       display: flex;
       align-items: center;
       gap: 6px;
       background: var(--bg-pill);
-      padding: 3px 10px;
+      padding: 3px 9px;
       border-radius: 6px;
       font-size: 11.5px;
       color: #d1d5db;
       cursor: pointer;
-      border: 1px solid #2d2d38;
+      border: 1px solid var(--border-pill);
     }
-    .model-selector-pill:hover { border-color: #3f3f4e; }
 
-    .input-right-controls {
+    .input-bar-right {
       display: flex;
       align-items: center;
       gap: 12px;
     }
 
-    .mic-icon-btn {
-      color: var(--text-muted);
+    .icon-mic {
+      color: var(--text-secondary);
       cursor: pointer;
       font-size: 14px;
     }
-    .mic-icon-btn:hover { color: #fff; }
 
-    .btn-stop-square {
-      width: 20px;
-      height: 20px;
+    .btn-stop-recording {
+      width: 18px;
+      height: 18px;
       border-radius: 4px;
-      background: var(--red-accent);
+      background: var(--accent-red);
       display: flex;
       align-items: center;
       justify-content: center;
       cursor: pointer;
     }
-    .btn-stop-square-inner {
-      width: 8px;
-      height: 8px;
+    .btn-stop-recording-inner {
+      width: 7px;
+      height: 7px;
       background: #ffffff;
       border-radius: 1px;
     }
 
     /* ========================================================
-       RIGHT SIDE PANEL (TRANSFORMED FROM GIT TO KRIYA ENTERPRISE)
+       RIGHT SIDE PANEL (KRIYA ENTERPRISE DELIVERABLES & GATEWAY)
        ======================================================== */
     aside.panel-right {
-      background: var(--bg-panel);
-      border-left: 1px solid var(--border-panel);
+      background: var(--bg-right-panel);
+      border-left: 1px solid var(--border-subtle);
       display: flex;
       flex-direction: column;
       height: 100%;
       overflow: hidden;
     }
 
-    .panel-top-tabstrip {
-      height: 38px;
-      border-bottom: 1px solid var(--border-panel);
+    .panel-top-icons {
+      height: 36px;
+      border-bottom: 1px solid var(--border-subtle);
       display: flex;
       align-items: center;
       justify-content: space-between;
       padding: 0 12px;
+      color: var(--text-secondary);
     }
 
-    .panel-tabs-left {
+    .panel-top-left-icons {
       display: flex;
       align-items: center;
-      gap: 8px;
-      color: var(--text-muted);
-    }
-    .tab-item-icon {
-      cursor: pointer;
-      padding: 4px;
-      border-radius: 4px;
-      display: flex;
-      align-items: center;
-    }
-    .tab-item-icon.active {
-      color: #ffffff;
-      background: #202028;
+      gap: 10px;
     }
 
-    .panel-tabs-right-controls {
+    .panel-top-right-icons {
       display: flex;
       align-items: center;
       gap: 10px;
       color: var(--text-dim);
     }
 
-    /* ACTION BAR: "Review" -> "Compliance", "Uncommitted" -> "Verified (ISO/IEC)", "Push" -> "Export to Host" */
-    .panel-action-bar {
-      padding: 10px 14px;
+    /* ACTION BAR */
+    .panel-action-strip {
+      padding: 8px 14px;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      border-bottom: 1px solid var(--border-panel);
+      border-bottom: 1px solid var(--border-subtle);
     }
 
-    .action-bar-title-group {
+    .action-strip-left {
       display: flex;
       align-items: center;
       gap: 8px;
     }
 
-    .panel-section-title {
+    .panel-main-label {
       font-weight: 600;
       color: #ffffff;
       font-size: 13px;
     }
 
-    .dropdown-pill-status {
+    .pill-dropdown-status {
       display: flex;
       align-items: center;
       gap: 6px;
-      background: #1f1f27;
-      border: 1px solid #2b2b36;
-      border-radius: 6px;
+      background: #1c1c24;
+      border: 1px solid #282834;
+      border-radius: 5px;
       padding: 3px 8px;
-      font-size: 11px;
+      font-size: 11.5px;
       color: #cbd5e1;
       cursor: pointer;
     }
 
-    .btn-action-primary {
-      background: var(--blue-accent);
+    .btn-primary-blue {
+      background: var(--accent-blue);
       color: #ffffff;
       border: none;
       border-radius: 5px;
-      padding: 5px 12px;
+      padding: 4px 12px;
       font-size: 12px;
-      font-weight: 600;
+      font-weight: 500;
       cursor: pointer;
       display: flex;
       align-items: center;
       gap: 6px;
-      box-shadow: 0 2px 8px rgba(0, 118, 255, 0.35);
-      transition: background 0.15s;
+      transition: background 0.1s;
     }
-    .btn-action-primary:hover { background: var(--blue-accent-hover); }
+    .btn-primary-blue:hover { background: var(--accent-blue-hover); }
 
-    .panel-content-scroll {
+    /* PANEL CONTENT: MINIMALIST IDE LISTING MATCHING REFERENCE */
+    .panel-content {
       flex: 1;
       overflow-y: auto;
       padding: 14px;
       display: flex;
       flex-direction: column;
-      gap: 18px;
+      gap: 16px;
+      font-size: 12px;
     }
 
-    .panel-group-header {
+    .panel-group-title {
       font-size: 11px;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.6px;
       color: var(--text-dim);
-      margin-bottom: 8px;
+      font-weight: 600;
+      margin-bottom: 6px;
       display: flex;
-      align-items: center;
       justify-content: space-between;
     }
 
-    .deliverable-file-card {
-      background: #181820;
-      border: 1px solid #23232c;
-      border-radius: 6px;
-      padding: 9px 11px;
-      margin-bottom: 6px;
+    .deliverable-row {
       display: flex;
       align-items: center;
-      gap: 10px;
-      cursor: pointer;
-      transition: border-color 0.15s;
-    }
-    .deliverable-file-card:hover { border-color: #3b82f6; }
-
-    .file-type-square {
-      width: 28px;
-      height: 28px;
+      gap: 9px;
+      padding: 6px 8px;
       border-radius: 5px;
+      background: #16161d;
+      border: 1px solid #20202a;
+      margin-bottom: 5px;
+      cursor: pointer;
+    }
+    .deliverable-row:hover { border-color: #3b82f6; }
+
+    .file-badge-sq {
+      width: 22px;
+      height: 22px;
+      border-radius: 4px;
       display: flex;
       align-items: center;
       justify-content: center;
       font-weight: 800;
-      font-size: 12px;
+      font-size: 10px;
       color: #fff;
     }
-    .file-type-square.docx { background: #1d4ed8; }
-    .file-type-square.xlsx { background: #059669; }
-    .file-type-square.pptx { background: #d97706; }
+    .file-badge-sq.w { background: #1d4ed8; }
+    .file-badge-sq.x { background: #059669; }
+    .file-badge-sq.p { background: #d97706; }
 
-    .file-card-details {
+    .file-info-text {
       flex: 1;
       overflow: hidden;
     }
-    .file-card-name {
-      font-size: 12px;
-      font-weight: 600;
-      color: #e5e7eb;
+    .file-title-line {
+      color: #e2e8f0;
+      font-weight: 500;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
     }
-    .file-card-meta {
+    .file-subtitle-line {
       font-size: 10.5px;
       color: var(--text-dim);
     }
 
-    .badge-pill-verified {
-      font-size: 9.5px;
-      color: #34d399;
-      background: rgba(16, 185, 129, 0.12);
-      border: 1px solid rgba(16, 185, 129, 0.3);
-      padding: 1px 5px;
-      border-radius: 3px;
-      font-weight: 600;
-    }
-
-    .host-bridge-box {
+    .info-card-box {
       background: #15151c;
-      border: 1px solid #22222b;
-      border-radius: 6px;
-      padding: 11px;
+      border: 1px solid #1f1f28;
+      border-radius: 5px;
+      padding: 10px;
       font-family: var(--font-mono);
       font-size: 11px;
-      color: #cbd5e1;
     }
-    .host-bridge-row {
+    .info-card-row {
       display: flex;
       justify-content: space-between;
-      margin-bottom: 5px;
+      margin-bottom: 4px;
     }
-    .host-bridge-row:last-child { margin-bottom: 0; }
-    .host-bridge-row .lbl { color: var(--text-dim); }
-    .host-bridge-row .val { color: #fff; font-weight: 600; }
-    .host-bridge-row .val.ok { color: #10b981; }
+    .info-card-row:last-child { margin-bottom: 0; }
+    .info-card-row .k { color: var(--text-dim); }
+    .info-card-row .v { color: #f1f5f9; }
+    .info-card-row .v.green { color: #34d399; }
 
-    .scada-telemetry-mini-grid {
+    .stat-2col-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 6px;
     }
-    .mini-stat-card {
-      background: #171720;
-      border: 1px solid #23232d;
+    .stat-box {
+      background: #16161d;
+      border: 1px solid #202029;
       border-radius: 5px;
-      padding: 8px 10px;
+      padding: 7px 9px;
     }
-    .mini-stat-card .lbl { font-size: 10px; color: var(--text-dim); text-transform: uppercase; }
-    .mini-stat-card .val { font-size: 14px; font-weight: 700; color: #fff; font-family: var(--font-mono); margin-top: 2px; }
-    .mini-stat-card .val.warn { color: #f59e0b; }
-    .mini-stat-card .val.crit { color: #ef4444; }
+    .stat-box .l { font-size: 10px; color: var(--text-dim); }
+    .stat-box .n { font-size: 13px; font-weight: 700; color: #fff; font-family: var(--font-mono); margin-top: 2px; }
+    .stat-box .n.crit { color: #ef4444; }
+    .stat-box .n.warn { color: #f59e0b; }
 
   </style>
 </head>
 <body>
 
-  <!-- OS BAR (EXACT LINUX TOP BAR FROM REFERENCE SCREENSHOT) -->
-  <div class="os-topbar">
-    <div class="os-workspaces">
-      <span class="ws-num">1</span>
-      <span class="ws-dim">2</span>
-      <span class="ws-dim">3</span>
-      <span class="ws-dim">4</span>
-      <span class="ws-dim">5</span>
+  <!-- OS TOP BAR (IDENTICAL TO SCREENSHOT) -->
+  <div class="os-bar">
+    <div class="os-bar-left">
+      <span class="num-active">1</span>
+      <span class="num-idle">2</span>
+      <span class="num-idle">3</span>
+      <span class="num-idle">4</span>
+      <span class="num-idle">5</span>
     </div>
-    <div class="os-clock">Wednesday 00:15</div>
-    <div class="os-tray">
+    <div class="os-bar-center">Wednesday 00:06</div>
+    <div class="os-bar-right">
       <span>●</span>
       <span>100%</span>
       <span>EN</span>
     </div>
   </div>
 
-  <!-- APPLICATION TOP MENU BAR -->
-  <div class="app-menubar">
-    <div class="menubar-left">
-      <div class="app-brand">
-        <div class="app-brand-badge">K</div>
-        KRIYA
-      </div>
-      <div class="menu-items">
+  <!-- APPLICATION MENU BAR -->
+  <div class="app-header">
+    <div class="app-header-left">
+      <div class="app-title">KRIYA</div>
+      <div class="menu-options">
         <span>File</span>
         <span>View</span>
         <span>Appliance</span>
-        <span>Tools</span>
         <span>Window</span>
       </div>
     </div>
-
-    <div class="menubar-right">
-      <div class="badge-sovereign">
-        <span class="dot"></span>
-        SOVEREIGN AIR-GAPPED APPLIANCE: ACTIVE (0.00 KB EGRESS)
-      </div>
+    <div class="app-header-right">
+      <span style="font-family:var(--font-mono); font-size:11px; color:#34d399;">
+        ● Sovereign Air-Gapped Appliance (0.00 KB Egress)
+      </span>
     </div>
   </div>
 
-  <!-- 3-COLUMN WORKBENCH BODY -->
-  <div class="workbench-body">
+  <!-- 3-COLUMN WORKBENCH GRID -->
+  <div class="workbench-grid">
 
-    <!-- ==========================================
+    <!-- ==============================================
          LEFT SIDEBAR
-         ========================================== -->
+         ============================================== -->
     <aside class="sidebar">
       <div class="sidebar-top-icons">
-        <span class="icon-k-logo">⬡</span>
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="9" y1="3" x2="9" y2="21"></line></svg>
-        <span style="font-size:12px; cursor:pointer;">&lt;</span>
-        <span style="font-size:12px; cursor:pointer; color:#4b5563;">&gt;</span>
+        <span class="icon-kriya-a">K</span>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="9" y1="3" x2="9" y2="21"></line></svg>
+        <span style="cursor:pointer;">&lt;</span>
+        <span style="cursor:pointer; color:var(--text-dim);">&gt;</span>
       </div>
 
-      <div class="sidebar-nav-btn primary">
+      <div class="sidebar-btn primary">
         <span>+</span>
         <span>New Conversation</span>
       </div>
-      <div class="sidebar-nav-btn">
+      <div class="sidebar-btn">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
         <span>Conversation History</span>
       </div>
-      <div class="sidebar-nav-btn">
+      <div class="sidebar-btn">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 8 14"></polyline></svg>
         <span>Scheduled Tasks</span>
       </div>
 
-      <div class="sidebar-divider"></div>
+      <div class="sidebar-sep"></div>
 
-      <div class="projects-header">
+      <div class="section-title-row">
         <span>Workspaces</span>
-        <div class="projects-header-icons">
+        <div class="section-icons">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="21" x2="4" y2="14"></line><line x1="4" y1="10" x2="4" y2="3"></line><line x1="12" y1="21" x2="12" y2="12"></line><line x1="12" y1="8" x2="12" y2="3"></line><line x1="20" y1="21" x2="20" y2="16"></line><line x1="20" y1="12" x2="20" y2="3"></line></svg>
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
         </div>
       </div>
 
-      <div class="project-folder-row">
+      <div class="folder-row">
         <span>📂</span>
         <span>Regulated Enterprise Ops</span>
       </div>
 
-      <!-- 6-7 MULTI-SECTOR REGULATED CONVERSATION HISTORIES -->
-      <div class="chat-history-scroll">
-        <!-- 1. Active: Energy Grid Substation -->
-        <div class="chat-history-item active">
-          <div class="chat-item-title">Power Grid Substation T-402 Risk Audit</div>
-          <div class="chat-item-meta">
-            <span class="status-dot-blue"></span>
+      <!-- CHAT HISTORY ITEMS WITH RELATIVE TIMESTAMPS & STATUS DOTS -->
+      <div class="history-list">
+        <!-- Active conversation with spinner -->
+        <div class="history-item active">
+          <div class="history-title">Power Grid Substation T-402 Risk Audit</div>
+          <div class="history-meta">
+            <div class="spinner-active"></div>
           </div>
         </div>
 
-        <!-- 2. Defense: Naval Radar Avionics -->
-        <div class="chat-history-item">
-          <div class="chat-item-title">Naval Radar Avionics Maintenance Dossier</div>
-          <div class="chat-item-meta">42m</div>
+        <div class="history-item">
+          <div class="history-title">Naval Radar Avionics Maintenance</div>
+          <div class="history-meta">35m</div>
         </div>
 
-        <!-- 3. Banking: AML Forensic Ledger -->
-        <div class="chat-history-item">
-          <div class="chat-item-title">AML Cross-Border Forensic Risk Ledger</div>
-          <div class="chat-item-meta">3h</div>
+        <div class="history-item">
+          <div class="history-title">AML Cross-Border Forensic Risk Ledger</div>
+          <div class="history-meta">12h</div>
         </div>
 
-        <!-- 4. Heavy Manufacturing: Turbine CNC -->
-        <div class="chat-history-item">
-          <div class="chat-item-title">Turbine CNC Spindle Vibration Study</div>
-          <div class="chat-item-meta">14h</div>
+        <div class="history-item">
+          <div class="history-title">Turbine CNC Spindle Vibration Study</div>
+          <div class="history-meta">14h</div>
         </div>
 
-        <!-- 5. Air-Gapped Critical Spares -->
-        <div class="chat-history-item">
-          <div class="chat-item-title">Air-Gapped Critical Spares Stock Model</div>
-          <div class="chat-item-meta">
-            <span class="status-dot-blue"></span>
-            <span>1d</span>
+        <div class="history-item">
+          <div class="history-title">Air-Gapped Critical Spares Stock Model</div>
+          <div class="history-meta">14h</div>
+        </div>
+
+        <div class="history-item">
+          <div class="history-title">Zero-Trust Data Egress Audit (ISO 27001)</div>
+          <div class="history-meta">2d</div>
+        </div>
+
+        <div class="history-item">
+          <div class="history-title">High-Voltage Bushing Thermography Scan</div>
+          <div class="history-meta">
+            <span class="dot-cyan"></span>
           </div>
         </div>
 
-        <!-- 6. Cybersecurity: Zero-Trust Egress Audit -->
-        <div class="chat-history-item">
-          <div class="chat-item-title">Zero-Trust Data Egress Audit (ISO 27001)</div>
-          <div class="chat-item-meta">2d</div>
-        </div>
-
-        <!-- 7. High-Voltage Bushing Scan -->
-        <div class="chat-history-item">
-          <div class="chat-item-title">High-Voltage Bushing Thermography Scan</div>
-          <div class="chat-item-meta">
-            <span class="status-dot-blue"></span>
-            <span>3d</span>
+        <div class="history-item">
+          <div class="history-title">Automated Compliance Disclosure Filing</div>
+          <div class="history-meta">
+            <span class="dot-cyan"></span>
           </div>
         </div>
 
-        <!-- 8. Regulatory Disclosure Filing -->
-        <div class="chat-history-item">
-          <div class="chat-item-title">Automated Compliance Disclosure Filing</div>
-          <div class="chat-item-meta">5d</div>
+        <div class="history-item">
+          <div class="history-title">Avionics Flight Hardware Sensor Audit</div>
+          <div class="history-meta">
+            <span class="dot-cyan"></span>
+          </div>
+        </div>
+
+        <div class="history-item">
+          <div class="history-title">Defense Ordinance Logistics Manifest</div>
+          <div class="history-meta">
+            <span class="dot-cyan"></span>
+          </div>
+        </div>
+
+        <div class="history-item">
+          <div class="history-title">Inter-Bank Settlement Reconciliation</div>
+          <div class="history-meta">
+            <span class="dot-cyan"></span>
+          </div>
+        </div>
+
+        <div class="history-item">
+          <div class="history-title">Clean Core ERP Integration Setup</div>
+          <div class="history-meta">5d</div>
+        </div>
+
+        <div class="history-item">
+          <div class="history-title">Install Sovereign FastMCP Gateway</div>
+          <div class="history-meta">7d</div>
+        </div>
+
+        <div class="history-item">
+          <div class="history-title">SCADA Telemetry Alarm Threshold Fix</div>
+          <div class="history-meta">
+            <span class="dot-cyan"></span>
+          </div>
+        </div>
+
+        <div class="history-item">
+          <div class="history-title">Transformer Oil Breakdown Analysis</div>
+          <div class="history-meta">
+            <span class="dot-cyan"></span>
+          </div>
+        </div>
+
+        <div class="history-item">
+          <div class="history-title">Turbine Blade Metallurgical Scan</div>
+          <div class="history-meta">
+            <span class="dot-cyan"></span>
+          </div>
+        </div>
+
+        <div class="history-item">
+          <div class="history-title">Autonomous Turnaround Scheduling Run</div>
+          <div class="history-meta">
+            <span class="dot-cyan"></span>
+          </div>
+        </div>
+
+        <div class="history-item">
+          <div class="history-title">Check Air-Gapped Network Isolation</div>
+          <div class="history-meta">
+            <span class="dot-cyan"></span>
+          </div>
+        </div>
+
+        <div class="history-item">
+          <div class="history-title">Container OS Host Bridge Diagnostic</div>
+          <div class="history-meta">
+            <span class="dot-cyan"></span>
+          </div>
         </div>
       </div>
 
-      <div class="sidebar-footer">
+      <div class="sidebar-bottom">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
         <span>Settings</span>
       </div>
     </aside>
 
-    <!-- ==========================================
-         CENTER CHAT AREA (EXACT LAYOUT FROM REFERENCE)
-         ========================================== -->
-    <main class="chat-center">
-      <!-- Breadcrumb Bar -->
-      <div class="chat-top-breadcrumb">
+    <!-- ==============================================
+         CENTER CHAT & REASONING STREAM
+         ============================================== -->
+    <main class="chat-area">
+      <!-- Top Breadcrumb -->
+      <div class="breadcrumb-bar">
         <div>
-          Regulated Enterprise Ops / <span class="active-crumb">Power Grid Substation T-402 Risk Audit</span>
+          Regulated Enterprise Ops / <span class="active-node">Power Grid Substation T-402 Risk Audit</span>
         </div>
         <div style="cursor:pointer; color:var(--text-dim);">⋮</div>
       </div>
 
-      <!-- Messages Stream -->
-      <div class="chat-scroll-area">
-        <!-- USER PROMPT -->
-        <div class="chat-user-message-container">
-          <div class="chat-user-bubble">
+      <!-- Messages Viewport -->
+      <div class="messages-viewport">
+
+        <!-- USER MESSAGE -->
+        <div class="user-bubble-container">
+          <div class="user-bubble">
             Perform an urgent risk assessment on Substation-04 Step-Up Transformer T-402: query internal SCADA telemetry, check on-prem ERP inventory for replacement bushings, model outage financial risk, and compile the official Compliance Sign-Off Dossier (DOCX) and CapEx Financial Model (XLSX).
           </div>
         </div>
 
-        <!-- ASSISTANT EXECUTION & REASONING (MATCHING REFERENCE TRACE) -->
-        <div class="assistant-stream-container">
-          <div class="assistant-action-icons">
+        <!-- ASSISTANT EXECUTION & VERDICT -->
+        <div class="assistant-flow">
+          <div class="assistant-feedback-icons">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"></path></svg>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3zm7-13h3a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2h-3"></path></svg>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
           </div>
 
-          <div class="execution-trace-summary">
+          <!-- Trace matching reference screenshot exactly -->
+          <div class="trace-title-row">
             <span>Explored 3 FastMCP tools, executed 2 container scripts</span>
             <span style="font-size:11px;">›</span>
           </div>
 
-          <div class="trace-notice">
+          <div class="trace-notice-line">
             Wait for background task task-1944 to complete.
           </div>
 
-          <div class="trace-task-box">
+          <div class="tasks-collapsible">
             <div style="color:#d1d5db; font-weight:600; margin-bottom:2px;">
               <span>Exploring 3 tasks</span>
               <span style="font-size:10px; margin-left:4px;">˅</span>
             </div>
-            <div class="trace-task-line">
+            <div class="task-entry">
               <span>Queried on-prem SCADA: T-402 winding temp at 104.2°C (Exceeded 95°C limit)</span>
               <span style="font-size:11px;">›</span>
             </div>
-            <div class="trace-task-line">
+            <div class="task-entry">
               <span>Queried on-prem ERP: Bushing BUSH-HV-400KV in Bay-2 (2 sets, ₹14,20,000 INR)</span>
               <span style="font-size:11px;">›</span>
             </div>
-            <div class="trace-task-line">
+            <div class="task-entry">
               <span>Executed container script: compile_capex_model.py (Exit Code 0)</span>
               <span style="font-size:11px;">›</span>
             </div>
-            <div class="trace-task-line">
+            <div class="task-entry">
               <span>Exported verified deliverables to host bridge (~/kriya-shared)</span>
               <span style="font-size:11px;">›</span>
             </div>
           </div>
 
-          <div class="trace-status-working">
+          <div class="status-working-text">
             Working
           </div>
 
-          <!-- VERDICT SUMMARY TABLE -->
-          <div class="verdict-card">
-            <div class="verdict-header">
-              <span class="verdict-title">Transformer T-402 Risk Synthesis & Contingency Matrix</span>
-              <span class="verdict-badge-risk">CRITICAL THERMAL RUNAWAY RISK</span>
-            </div>
-            <table class="compact-table">
+          <!-- Synthesized Result & Table -->
+          <div class="assistant-prose">
+            <p><strong>Transformer T-402 Risk Synthesis & Contingency Matrix:</strong></p>
+            <table class="exec-table">
               <thead>
                 <tr>
                   <th>Telemetry Metric</th>
                   <th>Observed Value</th>
-                  <th>IEEE / IEC Limit</th>
+                  <th>IEEE Limit</th>
                   <th>Variance</th>
                   <th>Integrity Impact</th>
                 </tr>
@@ -1055,31 +1027,32 @@
                 </tr>
               </tbody>
             </table>
-            <div style="font-size:12px; color:#cbd5e1; line-height:1.5;">
-              <strong>Recommendation:</strong> Schedule preventive replacement during the off-peak 02:00–06:00 window. Outage financial model indicates an estimated downtime penalty of <strong>₹42,00,000 INR</strong> if unmitigated catastrophic failure occurs, compared to <strong>₹14,20,000 INR</strong> for scheduled preventive maintenance.
-            </div>
+            <p style="margin-top:6px;">
+              <strong>Engineering Verdict:</strong> Schedule preventive replacement during the off-peak 02:00–06:00 window. Outage financial model calculates an estimated downtime penalty of <strong>₹42,00,000 INR</strong> if unmitigated catastrophic failure occurs, compared to <strong>₹14,20,000 INR</strong> for scheduled preventive maintenance.
+            </p>
           </div>
         </div>
+
       </div>
 
       <!-- FLOATING INPUT BOX (EXACT MATCH TO REFERENCE SCREENSHOT) -->
-      <div class="floating-input-wrapper">
-        <div class="floating-input-box">
-          <textarea class="input-prompt-text" rows="1" placeholder="Ask anything, @ to mention, / for actions"></textarea>
-          <div class="input-action-row">
-            <div class="input-left-pills">
-              <div class="btn-plus-icon">+</div>
-              <div class="model-selector-pill">
+      <div class="input-wrapper">
+        <div class="input-card">
+          <textarea class="input-textarea" rows="1" placeholder="Ask anything, @ to mention, / for actions"></textarea>
+          <div class="input-bottom-bar">
+            <div class="input-bar-left">
+              <div class="icon-btn-plus">+</div>
+              <div class="model-badge-pill">
                 <span>Qwen 2.5 14B Sovereign</span>
                 <span style="font-size:9px; color:var(--text-dim);">^</span>
               </div>
             </div>
-            <div class="input-right-controls">
-              <div class="mic-icon-btn">
+            <div class="input-bar-right">
+              <div class="icon-mic">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>
               </div>
-              <div class="btn-stop-square">
-                <div class="btn-stop-square-inner"></div>
+              <div class="btn-stop-recording">
+                <div class="btn-stop-recording-inner"></div>
               </div>
             </div>
           </div>
@@ -1087,160 +1060,144 @@
       </div>
     </main>
 
-    <!-- ==========================================
-         RIGHT SIDE PANEL (TRANSFORMED FOR KRIYA ENTERPRISE)
-         ========================================== -->
+    <!-- ==============================================
+         RIGHT SIDE PANEL (KRIYA ENTERPRISE DELIVERABLES)
+         ============================================== -->
     <aside class="panel-right">
-      <!-- Top Tabstrip -->
-      <div class="panel-top-tabstrip">
-        <div class="panel-tabs-left">
-          <div class="tab-item-icon active" title="Deliverables & Compliance">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
-          </div>
-          <div class="tab-item-icon" title="Edge Gateways">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect><rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect><line x1="6" y1="6" x2="6.01" y2="6"></line><line x1="6" y1="18" x2="6.01" y2="18"></line></svg>
-          </div>
-          <div class="tab-item-icon" title="Host Bridge Sync">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 16 12 12 8 16"></polyline><line x1="12" y1="12" x2="12" y2="21"></line><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"></path><polyline points="16 16 12 12 8 16"></polyline></svg>
-          </div>
+      <!-- Top Icon Row (Matching Reference Screenshot) -->
+      <div class="panel-top-icons">
+        <div class="panel-top-left-icons">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="15" y1="3" x2="15" y2="21"></line></svg>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 16 12 12 8 16"></polyline><line x1="12" y1="12" x2="12" y2="21"></line><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"></path></svg>
         </div>
-
-        <div class="panel-tabs-right-controls">
+        <div class="panel-top-right-icons">
           <span style="cursor:pointer;">+</span>
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 3 21 3 21 9"></polyline><polyline points="9 21 3 21 3 15"></polyline><line x1="21" y1="3" x2="14" y2="10"></line><line x1="3" y1="21" x2="10" y2="14"></line></svg>
           <span style="cursor:pointer;">×</span>
         </div>
       </div>
 
-      <!-- Action Bar: "Review" -> "Compliance", "Uncommitted" -> "Verified", "Push" -> "Export to Host" -->
-      <div class="panel-action-bar">
-        <div class="action-bar-title-group">
-          <span class="panel-section-title">Compliance</span>
-          <div class="dropdown-pill-status">
-            <span>Verified (ISO/IEC)</span>
+      <!-- Action Strip: "Review" -> "Compliance", "Uncommitted" -> "Verified", "Push" -> "Export to Host" -->
+      <div class="panel-action-strip">
+        <div class="action-strip-left">
+          <span class="panel-main-label">Compliance</span>
+          <div class="pill-dropdown-status">
+            <span>Verified (Air-Gapped)</span>
             <span style="font-size:9px; color:var(--text-dim);">˅</span>
           </div>
         </div>
 
-        <button class="btn-action-primary">
-          <span>Export to Host</span>
+        <button class="btn-primary-blue">
+          Export to Host
         </button>
       </div>
 
-      <!-- Panel Body Content -->
-      <div class="panel-content-scroll">
-        <!-- SECTION 1: VERIFIED DELIVERABLES -->
+      <!-- Panel Body (Clean List Matching Reference Layout) -->
+      <div class="panel-content">
+
+        <!-- SECTION: DELIVERABLES -->
         <div>
-          <div class="panel-group-header">
-            <span>Verified Deliverables (Ready for Sign-Off)</span>
-            <span style="color:#10b981; font-weight:600;">3 READY</span>
+          <div class="panel-group-title">
+            <span>VERIFIED DELIVERABLES</span>
+            <span style="color:#10b981;">3 READY</span>
           </div>
 
-          <!-- Docx Card -->
-          <div class="deliverable-file-card">
-            <div class="file-type-square docx">W</div>
-            <div class="file-card-details">
-              <div class="file-card-name">Compliance_Audit_Dossier_T402.docx</div>
-              <div class="file-card-meta">18 Pages • IEEE C57.104 Standard</div>
+          <div class="deliverable-row">
+            <div class="file-badge-sq w">W</div>
+            <div class="file-info-text">
+              <div class="file-title-line">Compliance_Audit_Dossier_T402.docx</div>
+              <div class="file-subtitle-line">18 Pages • IEEE C57.104 • Signed</div>
             </div>
-            <span class="badge-pill-verified">SIGNED</span>
           </div>
 
-          <!-- Xlsx Card -->
-          <div class="deliverable-file-card">
-            <div class="file-type-square xlsx">X</div>
-            <div class="file-card-details">
-              <div class="file-card-name">Substation_Outage_CapEx_Model.xlsx</div>
-              <div class="file-card-meta">4 Tabs • Dynamic Financial Formulas</div>
+          <div class="deliverable-row">
+            <div class="file-badge-sq x">X</div>
+            <div class="file-info-text">
+              <div class="file-title-line">Substation_Outage_CapEx_Model.xlsx</div>
+              <div class="file-subtitle-line">4 Tabs • Financial Formula Models</div>
             </div>
-            <span class="badge-pill-verified">AUDITED</span>
           </div>
 
-          <!-- Pptx Card -->
-          <div class="deliverable-file-card">
-            <div class="file-type-square pptx">P</div>
-            <div class="file-card-details">
-              <div class="file-card-name">Executive_Board_Briefing.pptx</div>
-              <div class="file-card-meta">5 Slides • 16:9 • KPI Outage Risk</div>
-            </div>
-            <span class="badge-pill-verified">READY</span>
-          </div>
-        </div>
-
-        <!-- SECTION 2: HOST OS FILESYSTEM BRIDGE -->
-        <div>
-          <div class="panel-group-header">
-            <span>Host Filesystem Bridge</span>
-            <span style="color:#38bdf8;">AIR-GAPPED</span>
-          </div>
-          <div class="host-bridge-box">
-            <div class="host-bridge-row">
-              <span class="lbl">Mount Directory</span>
-              <span class="val">~/kriya-shared/</span>
-            </div>
-            <div class="host-bridge-row">
-              <span class="lbl">Sync Protocol</span>
-              <span class="val ok">Bi-Directional Host Link</span>
-            </div>
-            <div class="host-bridge-row">
-              <span class="lbl">Data Egress</span>
-              <span class="val ok">0.00 KB (Zero Cloud Leaks)</span>
-            </div>
-            <div class="host-bridge-row">
-              <span class="lbl">Cryptographic Hash</span>
-              <span class="val">SHA256: 8f9a2c1...</span>
+          <div class="deliverable-row">
+            <div class="file-badge-sq p">P</div>
+            <div class="file-info-text">
+              <div class="file-title-line">Executive_Board_Briefing.pptx</div>
+              <div class="file-subtitle-line">5 Slides • 16:9 • KPI Outage Metrics</div>
             </div>
           </div>
         </div>
 
-        <!-- SECTION 3: DECENTRALIZED FAST-MCP EDGE NODE -->
+        <!-- SECTION: HOST BRIDGE -->
         <div>
-          <div class="panel-group-header">
-            <span>Decentralized Edge Node #01</span>
+          <div class="panel-group-title">
+            <span>HOST FILESYSTEM BRIDGE</span>
+            <span style="color:#38bdf8;">SYNCED</span>
+          </div>
+          <div class="info-card-box">
+            <div class="info-card-row">
+              <span class="k">Mount Target</span>
+              <span class="v">~/kriya-shared/</span>
+            </div>
+            <div class="info-card-row">
+              <span class="k">Data Egress</span>
+              <span class="v green">0.00 KB (Zero Cloud Leaks)</span>
+            </div>
+            <div class="info-card-row">
+              <span class="k">Host Isolation</span>
+              <span class="v">Air-Gapped Permitted</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- SECTION: SOVEREIGN EDGE NODE -->
+        <div>
+          <div class="panel-group-title">
+            <span>DECENTRALIZED EDGE NODE #01</span>
             <span style="color:#10b981;">CONNECTED</span>
           </div>
-          <div class="host-bridge-box">
-            <div class="host-bridge-row">
-              <span class="lbl">Gateway IP</span>
-              <span class="val">100.127.46.50:8085</span>
+          <div class="info-card-box">
+            <div class="info-card-row">
+              <span class="k">Gateway IP</span>
+              <span class="v">100.127.46.50:8085</span>
             </div>
-            <div class="host-bridge-row">
-              <span class="lbl">Discovered Tools</span>
-              <span class="val ok">7 Live FastMCP Endpoints</span>
+            <div class="info-card-row">
+              <span class="k">FastMCP Tools</span>
+              <span class="v green">7 Live Endpoints</span>
             </div>
-            <div class="host-bridge-row">
-              <span class="lbl">Inference Throughput</span>
-              <span class="val ok">48.4 tokens / sec</span>
+            <div class="info-card-row">
+              <span class="k">Inference</span>
+              <span class="v green">48.4 tokens / sec</span>
             </div>
-            <div class="host-bridge-row">
-              <span class="lbl">Round-Trip Latency</span>
-              <span class="val">14 ms (Internal Mesh)</span>
+            <div class="info-card-row">
+              <span class="k">Network Mesh</span>
+              <span class="v">14 ms Round-Trip</span>
             </div>
           </div>
         </div>
 
-        <!-- SECTION 4: REAL-TIME ASSET TELEMETRY -->
+        <!-- SECTION: REAL-TIME SCADA -->
         <div>
-          <div class="panel-group-header">
-            <span>Asset SCADA Telemetry</span>
+          <div class="panel-group-title">
+            <span>ASSET SCADA TELEMETRY</span>
             <span style="color:#f59e0b;">ALERT LEVEL 2</span>
           </div>
-          <div class="scada-telemetry-mini-grid">
-            <div class="mini-stat-card">
-              <div class="lbl">Winding Temp</div>
-              <div class="val crit">104.2 °C</div>
+          <div class="stat-2col-grid">
+            <div class="stat-box">
+              <div class="l">Winding Temp</div>
+              <div class="n crit">104.2 °C</div>
             </div>
-            <div class="mini-stat-card">
-              <div class="lbl">Asset Load</div>
-              <div class="val warn">88.4 %</div>
+            <div class="stat-box">
+              <div class="l">Asset Load</div>
+              <div class="n warn">88.4 %</div>
             </div>
-            <div class="mini-stat-card">
-              <div class="lbl">DGA (H₂ Surge)</div>
-              <div class="val crit">240 ppm</div>
+            <div class="stat-box">
+              <div class="l">DGA (H₂ Surge)</div>
+              <div class="n crit">240 ppm</div>
             </div>
-            <div class="mini-stat-card">
-              <div class="lbl">Downtime Risk</div>
-              <div class="val">₹42.0 Lakh</div>
+            <div class="stat-box">
+              <div class="l">Downtime Risk</div>
+              <div class="n">₹42.0 Lakh</div>
             </div>
           </div>
         </div>
