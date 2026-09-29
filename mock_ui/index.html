@@ -757,6 +757,324 @@
     .stat-box .n.crit { color: #ef4444; }
     .stat-box .n.warn { color: #f59e0b; }
 
+    .egress-indicator {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: #34d399;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    /* ========================================================
+       THEME TOGGLE BUTTON
+       ======================================================== */
+    .theme-toggle-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--bg-pill);
+      border: 1px solid var(--border-pill);
+      color: var(--text-secondary);
+      padding: 4px 11px;
+      border-radius: 6px;
+      font-size: 11.5px;
+      font-family: var(--font-ui);
+      font-weight: 500;
+      cursor: pointer;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+      user-select: none;
+    }
+    .theme-toggle-btn:hover {
+      color: var(--text-primary);
+      border-color: rgba(59, 130, 246, 0.45);
+      background: rgba(255, 255, 255, 0.08);
+      transform: translateY(-1px);
+      box-shadow: 0 3px 8px rgba(0, 0, 0, 0.3);
+    }
+    .theme-toggle-btn:active {
+      transform: translateY(0);
+    }
+
+    /* ========================================================
+       LIGHT MODE LUXURY THEME
+       ======================================================== */
+    body.theme-light {
+      --bg-desktop: #eef2f6;
+      --bg-window: #ffffff;
+      --bg-sidebar: linear-gradient(180deg, #f8fafc 0%, #edf2f7 100%);
+      --bg-center: radial-gradient(ellipse 90% 50% at 50% -10%, rgba(219, 234, 254, 0.45) 0%, rgba(255, 255, 255, 0) 75%), #fbfcfd;
+      --bg-right-panel: linear-gradient(180deg, #f8fafc 0%, #edf2f7 100%);
+      
+      --bg-user-bubble: linear-gradient(145deg, #ffffff 0%, #f8fafc 100%);
+      --bg-input-box: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+      --border-input: rgba(0, 0, 0, 0.12);
+      --bg-pill: linear-gradient(180deg, #f1f5f9 0%, #e2e8f0 100%);
+      --border-pill: rgba(0, 0, 0, 0.1);
+      
+      --border-subtle: rgba(0, 0, 0, 0.08);
+      --border-sidebar: rgba(0, 0, 0, 0.08);
+      
+      --text-primary: #0f172a;
+      --text-secondary: #475569;
+      --text-dim: #94a3b8;
+      --text-link: #2563eb;
+      
+      scrollbar-color: rgba(0, 0, 0, 0.18) transparent;
+    }
+
+    body.theme-light ::-webkit-scrollbar-thumb {
+      background: rgba(0, 0, 0, 0.16);
+    }
+    body.theme-light ::-webkit-scrollbar-thumb:hover {
+      background: rgba(0, 0, 0, 0.32);
+    }
+
+    body.theme-light .os-bar {
+      background: #e2e8f0;
+      color: #64748b;
+      border-bottom: 1px solid #cbd5e1;
+    }
+    body.theme-light .os-bar-left .num-active { color: #0f172a; }
+    body.theme-light .os-bar-left .num-idle { color: #94a3b8; }
+    body.theme-light .os-bar-center { color: #1e293b; }
+    body.theme-light .os-bar-right { color: #64748b; }
+
+    body.theme-light .app-header {
+      background: #ffffff;
+      border-bottom: 1px solid #e2e8f0;
+    }
+    body.theme-light .app-title {
+      color: #0f172a;
+    }
+    body.theme-light .menu-options {
+      color: #64748b;
+    }
+    body.theme-light .menu-options span:hover {
+      color: #0f172a;
+    }
+    body.theme-light .app-header-right {
+      color: #64748b;
+    }
+    body.theme-light .egress-indicator {
+      color: #059669;
+      font-weight: 600;
+    }
+
+    body.theme-light .icon-kriya-a {
+      color: #0f172a;
+    }
+    body.theme-light .sidebar-btn {
+      color: #475569;
+    }
+    body.theme-light .sidebar-btn:hover {
+      background: #e2e8f0;
+      color: #0f172a;
+    }
+    body.theme-light .sidebar-btn.primary {
+      color: #0f172a;
+    }
+    body.theme-light .folder-row {
+      color: #334155;
+    }
+    body.theme-light .history-item {
+      color: #475569;
+    }
+    body.theme-light .history-item:hover {
+      background: #e2e8f0;
+      color: #0f172a;
+    }
+    body.theme-light .history-item.active {
+      background: linear-gradient(90deg, rgba(37, 99, 235, 0.12) 0%, rgba(241, 245, 249, 0.9) 100%);
+      border-left: 2px solid #2563eb;
+      color: #1e3a8a;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+    }
+    body.theme-light .spinner-active {
+      border: 1.5px solid rgba(0, 0, 0, 0.2);
+      border-top-color: #2563eb;
+    }
+    body.theme-light .sidebar-bottom {
+      color: #475569;
+      border-top: 1px solid #e2e8f0;
+    }
+    body.theme-light .sidebar-bottom:hover {
+      color: #0f172a;
+    }
+
+    body.theme-light .breadcrumb-bar {
+      border-bottom: 1px solid #e2e8f0;
+      color: #64748b;
+    }
+    body.theme-light .breadcrumb-bar span.active-node {
+      color: #0f172a;
+    }
+
+    body.theme-light .user-bubble {
+      background: var(--bg-user-bubble);
+      border: 1px solid #e2e8f0;
+      color: #1e293b;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05), inset 0 1px 0 #ffffff;
+    }
+
+    body.theme-light .assistant-feedback-icons {
+      color: #94a3b8;
+    }
+    body.theme-light .assistant-feedback-icons svg:hover {
+      color: #0f172a;
+    }
+    body.theme-light .trace-title-row {
+      color: #475569;
+    }
+    body.theme-light .trace-title-row:hover {
+      color: #0f172a;
+    }
+    body.theme-light .trace-notice-line {
+      color: #64748b;
+    }
+    body.theme-light .tasks-collapsible {
+      color: #64748b;
+    }
+    body.theme-light .tasks-collapsible > div:first-child {
+      color: #334155 !important;
+    }
+    body.theme-light .task-entry {
+      color: #475569;
+    }
+    body.theme-light .task-entry strong {
+      color: #0f172a;
+    }
+    body.theme-light .status-working-text {
+      color: #475569;
+    }
+    body.theme-light .assistant-prose {
+      color: #1e293b;
+    }
+
+    body.theme-light table.exec-table {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+    }
+    body.theme-light table.exec-table th {
+      background: #f8fafc;
+      color: #64748b;
+      border-bottom: 1px solid #e2e8f0;
+    }
+    body.theme-light table.exec-table td {
+      border-bottom: 1px solid #f1f5f9;
+      color: #1e293b;
+    }
+
+    body.theme-light .input-card {
+      background: var(--bg-input-box);
+      border: 1px solid var(--border-input);
+      box-shadow: 0 10px 28px rgba(15, 23, 42, 0.08), inset 0 1px 0 #ffffff;
+    }
+    body.theme-light .input-textarea {
+      color: #0f172a;
+    }
+    body.theme-light .input-textarea::placeholder {
+      color: #94a3b8;
+    }
+    body.theme-light .icon-btn-plus {
+      color: #64748b;
+    }
+    body.theme-light .icon-btn-plus:hover {
+      color: #0f172a;
+    }
+    body.theme-light .model-badge-pill {
+      background: var(--bg-pill);
+      border: 1px solid var(--border-pill);
+      color: #334155;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+    }
+    body.theme-light .icon-mic {
+      color: #64748b;
+    }
+    body.theme-light .icon-mic:hover {
+      color: #0f172a;
+    }
+
+    body.theme-light .panel-top-icons {
+      border-bottom: 1px solid #e2e8f0;
+      color: #64748b;
+    }
+    body.theme-light .panel-action-strip {
+      border-bottom: 1px solid #e2e8f0;
+    }
+    body.theme-light .panel-main-label {
+      color: #0f172a;
+    }
+    body.theme-light .pill-dropdown-status {
+      background: var(--bg-pill);
+      border: 1px solid var(--border-pill);
+      color: #334155;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+    }
+    body.theme-light .panel-group-title {
+      color: #64748b;
+    }
+
+    body.theme-light .deliverable-row {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04), inset 0 1px 0 #ffffff;
+    }
+    body.theme-light .deliverable-row:hover {
+      border-color: rgba(37, 99, 235, 0.35);
+      background: #f8fafc;
+      box-shadow: 0 3px 10px rgba(37, 99, 235, 0.08);
+    }
+    body.theme-light .file-title-line {
+      color: #0f172a;
+    }
+    body.theme-light .file-subtitle-line {
+      color: #64748b;
+    }
+
+    body.theme-light .info-card-box {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+    }
+    body.theme-light .info-card-row .k {
+      color: #64748b;
+    }
+    body.theme-light .info-card-row .v {
+      color: #0f172a;
+    }
+    body.theme-light .info-card-row .v.green {
+      color: #059669;
+    }
+
+    body.theme-light .stat-box {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+    }
+    body.theme-light .stat-box .l {
+      color: #64748b;
+    }
+    body.theme-light .stat-box .n {
+      color: #0f172a;
+    }
+    body.theme-light .stat-box .n.crit {
+      color: #dc2626;
+    }
+    body.theme-light .stat-box .n.warn {
+      color: #d97706;
+    }
+
+    body.theme-light .theme-toggle-btn {
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+    }
+    body.theme-light .theme-toggle-btn:hover {
+      background: #ffffff;
+      border-color: rgba(37, 99, 235, 0.4);
+    }
+
   </style>
 </head>
 <body>
@@ -790,9 +1108,13 @@
       </div>
     </div>
     <div class="app-header-right">
-      <span style="font-family:var(--font-mono); font-size:11px; color:#34d399;">
+      <span class="egress-indicator">
         ● Sovereign Air-Gapped Appliance (0.00 KB Egress)
       </span>
+      <button id="themeToggleBtn" class="theme-toggle-btn" title="Toggle Light/Dark Theme">
+        <span id="themeIcon">☀️</span>
+        <span id="themeText">Light Mode</span>
+      </button>
     </div>
   </div>
 
@@ -1258,5 +1580,43 @@
 
   </div>
 
+  <script>
+    const themeToggleBtn = document.getElementById('themeToggleBtn');
+    const themeIcon = document.getElementById('themeIcon');
+    const themeText = document.getElementById('themeText');
+
+    function setTheme(mode) {
+      if (mode === 'light') {
+        document.body.classList.add('theme-light');
+        themeIcon.textContent = '🌙';
+        themeText.textContent = 'Dark Mode';
+        try { localStorage.setItem('kriya-theme', 'light'); } catch (e) {}
+      } else {
+        document.body.classList.remove('theme-light');
+        themeIcon.textContent = '☀️';
+        themeText.textContent = 'Light Mode';
+        try { localStorage.setItem('kriya-theme', 'dark'); } catch (e) {}
+      }
+    }
+
+    // Default to dark mode or restore user preference
+    try {
+      const savedTheme = localStorage.getItem('kriya-theme');
+      if (savedTheme === 'light') {
+        setTheme('light');
+      } else {
+        setTheme('dark');
+      }
+    } catch (e) {
+      setTheme('dark');
+    }
+
+    if (themeToggleBtn) {
+      themeToggleBtn.addEventListener('click', () => {
+        const isCurrentlyLight = document.body.classList.contains('theme-light');
+        setTheme(isCurrentlyLight ? 'dark' : 'light');
+      });
+    }
+  </script>
 </body>
 </html>
