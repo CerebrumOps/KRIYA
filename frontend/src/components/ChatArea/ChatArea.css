@@ -1240,4 +1240,309 @@
   color: #0A0E17;
 }
 
+/* ==============================================================================
+   MISSION CONTROL / PIPELINE HUD ANIMATIONS & STYLES
+   ============================================================================== */
+
+@keyframes hudRadarPulse {
+  0% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(14, 165, 233, 0.7);
+  }
+  70% {
+    transform: scale(1.05);
+    box-shadow: 0 0 0 8px rgba(14, 165, 233, 0);
+  }
+  100% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(14, 165, 233, 0);
+  }
+}
+
+@keyframes hudFlowDash {
+  to {
+    stroke-dashoffset: -24;
+  }
+}
+
+@keyframes hudGlowBreathing {
+  0%, 100% {
+    border-color: rgba(14, 165, 233, 0.4);
+    box-shadow: 0 0 12px rgba(14, 165, 233, 0.25);
+  }
+  50% {
+    border-color: rgba(14, 165, 233, 0.9);
+    box-shadow: 0 0 20px rgba(14, 165, 233, 0.55);
+  }
+}
+
+@keyframes hudShimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.mission-control-hud {
+  margin: 12px 20px 8px 20px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(15, 23, 42, 0.96) 0%, rgba(30, 41, 59, 0.98) 100%);
+  border: 1px solid rgba(56, 189, 248, 0.25);
+  box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.4), 0 0 15px rgba(14, 165, 233, 0.12);
+  color: #f8fafc;
+  overflow: hidden;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+}
+
+[data-theme="light"] .mission-control-hud {
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+  color: #f8fafc;
+}
+
+.hud-radar-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: #38bdf8;
+  animation: hudRadarPulse 2s infinite;
+  display: inline-block;
+}
+
+.hud-radar-dot.completed {
+  background-color: #10b981;
+  box-shadow: 0 0 8px #10b981;
+  animation: none;
+}
+
+.hud-pipeline-track {
+  display: flex;
+  align-items: center;
+  overflow-x: auto;
+  padding: 14px 18px;
+  gap: 8px;
+  scrollbar-width: thin;
+}
+
+.hud-pipeline-track::-webkit-scrollbar {
+  height: 4px;
+}
+.hud-pipeline-track::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.2);
+  border-radius: 2px;
+}
+
+.hud-node-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: rgba(30, 41, 59, 0.7);
+  border: 1px solid rgba(148, 163, 184, 0.15);
+  min-width: 170px;
+  max-width: 240px;
+  flex-shrink: 0;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.hud-node-card.active {
+  background: rgba(14, 165, 233, 0.12);
+  border: 1px solid rgba(56, 189, 248, 0.6);
+  animation: hudGlowBreathing 2.5s infinite ease-in-out;
+}
+
+.hud-node-card.completed {
+  background: rgba(16, 185, 129, 0.08);
+  border: 1px solid rgba(16, 185, 129, 0.35);
+}
+
+.hud-node-card.pending {
+  opacity: 0.65;
+}
+
+.hud-conduit-arrow {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  color: rgba(148, 163, 184, 0.35);
+}
+
+.hud-conduit-arrow.active {
+  color: #38bdf8;
+}
+
+.hud-conduit-arrow.completed {
+  color: #10b981;
+}
+
+.hud-progress-bar-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  background: linear-gradient(90deg, #0284c7 0%, #38bdf8 50%, #10b981 100%);
+  background-size: 200% 100%;
+}
+
+/* ==========================================================================
+   INTERACTIVE IN-CHAT DELIVERABLE ARTIFACT CARDS
+   ========================================================================== */
+
+.message-deliverables-container {
+  margin-top: 14px;
+  padding: 14px 16px;
+  background: rgba(248, 250, 252, 0.95);
+  border: 1.5px solid rgba(226, 232, 240, 0.9);
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.message-deliverables-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #0f766e;
+}
+
+.deliverables-header-icon {
+  color: #0d9488;
+}
+
+.deliverables-count-tag {
+  background: rgba(13, 148, 136, 0.12);
+  color: #0f766e;
+  padding: 2px 7px;
+  border-radius: 9999px;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.message-deliverables-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 10px;
+}
+
+.deliverable-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: #ffffff;
+  border: 1px solid rgba(203, 213, 225, 0.8);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  transition: all 0.2s ease;
+}
+
+.deliverable-card:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+}
+
+.deliverable-card.card-docx {
+  border-left: 3.5px solid #0284c7;
+}
+
+.deliverable-card.card-xlsx {
+  border-left: 3.5px solid #10b981;
+}
+
+.deliverable-card.card-pptx {
+  border-left: 3.5px solid #f59e0b;
+}
+
+.deliverable-card.card-csv {
+  border-left: 3.5px solid #06b6d4;
+}
+
+.deliverable-card.card-py {
+  border-left: 3.5px solid #8b5cf6;
+}
+
+.deliverable-card-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  background: rgba(241, 245, 249, 0.9);
+  flex-shrink: 0;
+}
+
+.deliverable-card-details {
+  flex: 1;
+  min-width: 0;
+}
+
+.deliverable-card-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1e293b;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.deliverable-card-desc {
+  font-size: 11px;
+  color: #64748b;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: 1px;
+}
+
+.deliverable-download-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 11px;
+  border-radius: 6px;
+  background: #0f172a;
+  color: #ffffff;
+  border: none;
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.15s ease;
+}
+
+.deliverable-download-action-btn:hover {
+  background: #1e293b;
+}
+
+.view-all-deliverables-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  align-self: flex-start;
+  background: transparent;
+  border: none;
+  color: #0284c7;
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 4px;
+  transition: color 0.15s ease;
+}
+
+.view-all-deliverables-btn:hover {
+  color: #0369a1;
+  text-decoration: underline;
+}
+
+
 

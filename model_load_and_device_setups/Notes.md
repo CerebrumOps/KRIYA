@@ -1,0 +1,1 @@
+This folder contains the view of how the Model Balancer and tailscale network is between teamates. This jsut to understand nothing much to do here.

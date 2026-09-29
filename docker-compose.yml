@@ -1,0 +1,34 @@
+# ==============================================================================
+# KRIYA Sovereign AI Client Appliance — Docker Compose Configuration
+# ==============================================================================
+# Deploys the complete KRIYA client environment:
+# - Frontend Web UI (:3000)
+# - Local Agent FastAPI & ReAct Loop (:5001)
+# - Self-contained SQLite conversation database
+# - Per-chat workspace isolation and host filesystem bridge
+# ==============================================================================
+
+services:
+  kriya-client:
+    container_name: kriya-client-appliance
+    image: kriya-client:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+    network_mode: host
+    cap_add:
+      - NET_ADMIN
+    volumes:
+      - kriya-data:/app/data
+      - kriya-workspace:/app/workspace
+      - ~/kriya-shared:/host-bridge
+      - ~/kriya-shared:/host_shared
+    env_file:
+      - .env
+    restart: unless-stopped
+
+volumes:
+  kriya-data:
+    name: kriya-data
+  kriya-workspace:
+    name: kriya-workspace

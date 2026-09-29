@@ -1,0 +1,21 @@
+{
+  "mcpServers": {
+    "sovereign_company_db": {
+      "url": "http://100.127.46.50:8085/sse",
+      "transport": "sse",
+      "node": "Raspberry Pi 5 (Tailscale: 100.127.46.50)",
+      "description": "Sovereign Company Database & SCADA Telemetry FastMCP Appliance",
+      "tools": [
+        "get_all_refinery_units",
+        "get_unit_equipment",
+        "get_equipment_detail",
+        "get_inspection_history",
+        "get_critical_tml_readings",
+        "search_approval_notes",
+        "get_material_and_stock",
+        "get_live_mcp_telemetry",
+        "get_all_mcp_units_status"
+      ]
+    }
+  }
+}

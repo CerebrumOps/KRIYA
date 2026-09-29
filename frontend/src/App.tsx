@@ -1,14 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Menu, X, Plus, Wrench, PanelLeftOpen, PanelLeftClose, Flame, Compass, ShieldCheck, Sun, Moon, LogOut, Layers, FolderOpen, Shield, ShieldAlert, Users, FileText } from 'lucide-react';
+import { Menu, X, Plus, Wrench, PanelLeftOpen, PanelLeftClose, Flame, Compass, ShieldCheck, Sun, Moon, LogOut, Layers, FolderOpen, Shield, ShieldAlert, Users, FileText, Globe, WifiOff } from 'lucide-react';
 import Sidebar from './components/Sidebar/Sidebar';
 import ChatArea from './components/ChatArea/ChatArea';
 import RightToolPanel from './components/RightToolPanel/RightToolPanel';
 import AuthLayout from './components/Auth/AuthLayout';
-import TaskQueueModal from './components/TaskQueue/TaskQueueModal';
 import ArtifactsDrawer from './components/Artifacts/ArtifactsDrawer';
 import AdminPortal from './components/Admin/AdminPortal';
-import { Plan, ChecklistItem, getActivePlan, createPlan } from './api/plan_api';
 import { streamChatMessage } from './api/chat_api';
+import { getInternetStatus, toggleInternet } from './api/settings_api';
 import { 
   createConversation, 
   listConversations, 
@@ -212,44 +211,16 @@ export default function App() {
   const [messages, setMessages] = useState<UIMessage[]>([]);
   const [toolCalls, setToolCalls] = useState<ToolCallItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [isPlanning, setIsPlanning] = useState(false);
   const [isToolPanelExpanded, setIsToolPanelExpanded] = useState(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
-  const [isTaskQueueOpen, setIsTaskQueueOpen] = useState(false);
   const [isArtifactsOpen, setIsArtifactsOpen] = useState(false);
-  const [activePlan, setActivePlan] = useState<Plan | null>(null);
-  const [checklistItems, setChecklistItems] = useState<ChecklistItem[]>([]);
-  const [isChecklistOpen, setIsChecklistOpen] = useState<boolean>(false);
   const toolPanelCollapseTimerRef = useRef<NodeJS.Timeout | null>(null);
   const wasAnyToolRunningRef = useRef<boolean>(false);
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
     const saved = localStorage.getItem('kriya_theme');
     return saved === 'dark' ? 'dark' : 'light';
   });
-
-  // Check active plan on mount or chat switch
-  useEffect(() => {
-    getActivePlan()
-      .then((p) => {
-        if (p) {
-          setActivePlan(p);
-          const items: ChecklistItem[] = p.check_list && p.check_list.length > 0
-            ? p.check_list
-            : (p.steps || []).map((s, idx) => ({
-                id: `step_${s.step_id || idx + 1}`,
-                task: s.title,
-                tool: s.tool,
-                status: s.status === 'completed' ? 'success' : (s.status === 'running' ? 'in_progress' : 'pending')
-              }));
-          setChecklistItems(items);
-          if (p.status === 'APPROVED' || p.status === 'IN_PROGRESS') {
-            setIsChecklistOpen(true);
-          }
-        }
-      })
-      .catch(() => {});
-  }, [activeChatId]);
 
   // Sync theme attribute to HTML root and persist in localStorage
   useEffect(() => {
@@ -259,6 +230,40 @@ export default function App() {
 
   const toggleTheme = () => {
     setTheme((prev) => (prev === 'light' ? 'dark' : 'light'));
+  };
+
+  // Sovereign Air-Gap vs Internet State
+  const [isInternetEnabled, setIsInternetEnabled] = useState<boolean>(false);
+  const [isTogglingInternet, setIsTogglingInternet] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (currentView === 'app') {
+      getInternetStatus()
+        .then((res) => setIsInternetEnabled(res.enabled))
+        .catch(() => setIsInternetEnabled(false));
+    }
+  }, [currentView]);
+
+  const handleToggleInternet = async () => {
+    const nextState = !isInternetEnabled;
+    if (nextState) {
+      const confirmed = window.confirm(
+        'SECURITY NOTICE:\n\nYou are about to enable outbound internet access for KRIYA.\n' +
+        'This allows the agent to search DuckDuckGo, fetch technical documentation, or download packages.\n\n' +
+        'Allow outbound internet access?'
+      );
+      if (!confirmed) return;
+    }
+
+    setIsTogglingInternet(true);
+    try {
+      const res = await toggleInternet(nextState);
+      setIsInternetEnabled(res.enabled);
+    } catch (err) {
+      console.error('Failed to toggle internet connectivity:', err);
+    } finally {
+      setIsTogglingInternet(false);
+    }
   };
 
   const isAnyRunning = toolCalls.some((tc) => tc.status === 'running');
@@ -397,65 +402,6 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentUser?.employeeId]);
 
-  // Handle generating a plan via Planning Agent and popping up approval modal
-  const handleRequestPlan = async (text: string) => {
-    if (!text.trim() || isLoading || isPlanning) return;
-    setIsPlanning(true);
-    setIsLoading(true);
-    try {
-      const generatedPlan = await createPlan(text.trim());
-      setActivePlan(generatedPlan);
-      setIsTaskQueueOpen(true);
-    } catch (err: any) {
-      console.error('Failed to create execution plan:', err);
-    } finally {
-      setIsPlanning(false);
-      setIsLoading(false);
-    }
-  };
-
-  const handlePlanApproved = (approvedPlan: Plan) => {
-    const items: ChecklistItem[] = approvedPlan.check_list && approvedPlan.check_list.length > 0
-      ? approvedPlan.check_list
-      : (approvedPlan.steps || []).map((s, idx) => ({
-          id: `step_${s.step_id || idx + 1}`,
-          task: s.title,
-          tool: s.tool,
-          status: s.status === 'completed' ? 'success' : (s.status === 'running' ? 'in_progress' : 'pending')
-        }));
-
-    setActivePlan(approvedPlan);
-    setChecklistItems(items);
-    setIsChecklistOpen(true);
-    setIsTaskQueueOpen(false);
-
-    const formattedTasks = items
-      .map((it, idx) => `${idx + 1}. [Tool: ${it.tool || 'specialized_tool'}] ${it.task}`)
-      .join('\n');
-
-    const executionPrompt = `Execute approved engineering plan: ${approvedPlan.title}
-
-### Strategic Plan & Directives:
-${approvedPlan.plan || 'Execute the approved operational workflow according to MRPL safety standards.'}
-
-### Mandatory Execution Checklist:
-${formattedTasks}
-
-### Operating Instructions for KRIYA AI:
-1. Execute each task in the checklist above using the specified specialized refinery tools.
-2. Store all generated documents (.docx approval notes, .xlsx cost sheets, .pptx decks, calculation scripts) into the active chat workspace.
-3. Upon concluding tool executions, synthesize the complete findings into an authoritative final engineering report.`;
-
-    handleSendMessage(executionPrompt);
-  };
-
-  const handlePlanRejected = () => {
-    setActivePlan(null);
-    setChecklistItems([]);
-    setIsChecklistOpen(false);
-    setIsTaskQueueOpen(false);
-  };
-
   // Handle sending a message with real-time streaming and tool execution
   const handleSendMessage = async (text: string) => {
     if (!text.trim() || isLoading) return;
@@ -522,33 +468,6 @@ ${formattedTasks}
 
           if (parsed.toolCalls.length > 0) {
             setToolCalls(parsed.toolCalls);
-
-            // Synchronize checklist items with real-time tool calls
-            setChecklistItems((prevItems) => {
-              if (prevItems.length === 0) return prevItems;
-              let hasChange = false;
-              const nextItems = prevItems.map((item) => {
-                const itemTool = (item.tool || '').toLowerCase().trim();
-                if (!itemTool) return item;
-
-                const matchingCall = parsed.toolCalls.find((tc) => {
-                  const tcName = (tc.name || '').toLowerCase().trim();
-                  return tcName === itemTool || tcName.includes(itemTool) || itemTool.includes(tcName);
-                });
-
-                if (matchingCall) {
-                  if (matchingCall.status === 'completed' && item.status !== 'success') {
-                    hasChange = true;
-                    return { ...item, status: 'success' as const };
-                  } else if (matchingCall.status === 'running' && item.status === 'pending') {
-                    hasChange = true;
-                    return { ...item, status: 'in_progress' as const };
-                  }
-                }
-                return item;
-              });
-              return hasChange ? nextItems : prevItems;
-            });
 
             if (parsed.isAnyRunning) {
               // Tool is actively executing: cancel any pending slide-back timer and open panel
@@ -704,8 +623,6 @@ ${formattedTasks}
     setActiveChatId(null);
     setMessages([]);
     setToolCalls([]);
-    setActivePlan(null);
-    setIsTaskQueueOpen(false);
     setIsArtifactsOpen(false);
     setCurrentView('auth');
   };
@@ -823,30 +740,24 @@ ${formattedTasks}
         </div>
 
         <div className="strip-right">
+          {/* Sovereign Air-Gap vs Internet Toggle Switch */}
           <button
             type="button"
-            className={`workbench-action-btn ${activePlan?.status === 'PENDING_APPROVAL' ? 'active-plan' : ''}`}
-            onClick={async () => {
-              if (!activePlan) {
-                try {
-                  const defaultPlan = await createPlan("Analyze the attached scanned inspection report for the compressor unit.");
-                  setActivePlan(defaultPlan);
-                } catch (e) {
-                  console.warn('Failed to load plan:', e);
-                }
-              }
-              setIsTaskQueueOpen(true);
-            }}
-            title="Review multi-step strategic plan specifications"
+            className={`workbench-action-btn ${isInternetEnabled ? 'internet-active-btn' : 'airgap-locked-btn'}`}
+            onClick={handleToggleInternet}
+            disabled={isTogglingInternet}
+            title={
+              isInternetEnabled
+                ? "Internet access is ACTIVE (Click to restore Sovereign Air-Gap lockdown)"
+                : "Air-Gap is LOCKED (Click to enable external Internet access for the agent)"
+            }
           >
-            <FileText size={13} />
-            <span>
-              {activePlan?.status === 'PENDING_APPROVAL'
-                ? 'Task Plan (1 Review)'
-                : activePlan
-                ? `Task Plan: ${activePlan.status}`
-                : 'Task Plan'}
-            </span>
+            {isInternetEnabled ? (
+              <Globe size={13} style={{ color: '#10b981' }} />
+            ) : (
+              <WifiOff size={13} style={{ opacity: 0.7 }} />
+            )}
+            <span>{isInternetEnabled ? 'Internet Active' : 'Air-Gap Locked'}</span>
           </button>
 
           <button
@@ -918,13 +829,9 @@ ${formattedTasks}
         <ChatArea
           messages={messages}
           onSendMessage={handleSendMessage}
-          onRequestPlan={handleRequestPlan}
           isLoading={isLoading}
-          isPlanning={isPlanning}
-          activePlan={activePlan}
-          checklistItems={checklistItems}
-          isChecklistOpen={isChecklistOpen}
-          onCloseChecklist={() => setIsChecklistOpen(false)}
+          activeChatId={activeChatId}
+          onOpenDeliverables={() => setIsArtifactsOpen(true)}
         />
 
         {/* 3. Collapsible Right-Side Tool Execution Drawer */}
@@ -937,15 +844,6 @@ ${formattedTasks}
       </div>
 
       {/* Modals & Overlays */}
-      <TaskQueueModal
-        plan={activePlan}
-        isOpen={isTaskQueueOpen}
-        onClose={() => setIsTaskQueueOpen(false)}
-        onPlanApproved={handlePlanApproved}
-        onPlanRejected={handlePlanRejected}
-        onPlanUpdated={(updated) => setActivePlan(updated)}
-      />
-
       <ArtifactsDrawer
         isOpen={isArtifactsOpen}
         onClose={() => setIsArtifactsOpen(false)}

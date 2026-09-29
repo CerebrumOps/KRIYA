@@ -18,11 +18,19 @@ import {
   Calculator,
   Activity,
   Wrench,
-  ShieldCheck
+  ShieldCheck,
+  FileText,
+  Sheet,
+  Presentation,
+  FileCode,
+  Download,
+  FolderOpen,
+  CheckCircle2
 } from 'lucide-react';
 import MarkdownRenderer from './MarkdownRenderer';
 import { ErrorInfo } from '../../utils/errorHandler';
 import { copyTextToClipboard } from '../../utils/clipboard';
+import { downloadDeliverable } from '../../api/workspace_api';
 
 export interface MessageMeta {
   model?: string;
@@ -49,6 +57,8 @@ export interface MessageListProps {
   messages?: UIMessage[];
   isLoading?: boolean;
   onSelectPrompt?: (prompt: string) => void;
+  activeChatId?: string | null;
+  onOpenDeliverables?: () => void;
 }
 
 const SUGGESTION_PILLS = [
@@ -84,10 +94,84 @@ const SUGGESTION_PILLS = [
   }
 ];
 
+interface ExtractedDeliverable {
+  filename: string;
+  type: 'docx' | 'xlsx' | 'pptx' | 'csv' | 'pdf' | 'py' | 'json';
+  title: string;
+  description: string;
+}
+
+function buildDeliverableInfo(filename: string): ExtractedDeliverable {
+  const ext = (filename.split('.').pop() || '').toLowerCase();
+  let type: 'docx' | 'xlsx' | 'pptx' | 'csv' | 'pdf' | 'py' | 'json' = 'docx';
+  let title = filename.replace(/\.[^/.]+$/, '').replace(/[_-]/g, ' ');
+  let description = 'Verified Corporate Deliverable';
+
+  if (ext === 'docx') {
+    type = 'docx';
+    description = 'Microsoft Word Engineering Approval Note';
+  } else if (ext === 'xlsx') {
+    type = 'xlsx';
+    description = 'Excel Multi-Tab Financial & Cost Model';
+  } else if (ext === 'pptx') {
+    type = 'pptx';
+    description = 'Executive Management PowerPoint Slide Deck';
+  } else if (ext === 'csv') {
+    type = 'csv';
+    description = 'Structured Telemetry / Inspection CSV Dataset';
+  } else if (ext === 'py') {
+    type = 'py';
+    description = 'Sandboxed & Verified Python Engineering Utility';
+  } else if (ext === 'pdf') {
+    type = 'pdf';
+    description = 'Compiled Engineering Specification Document';
+  }
+
+  return { filename, type, title, description };
+}
+
+function extractDeliverablesFromMessage(msg: UIMessage): ExtractedDeliverable[] {
+  const text = (msg.rawContent || '') + ' ' + (msg.content || '');
+  const files: ExtractedDeliverable[] = [];
+  const seen = new Set<string>();
+
+  // Pattern 1: [Deliverable Created]: ... saved to '.../filename.ext'
+  const createdMatches = text.matchAll(/\[Deliverable Created\]:.*?saved to '([^']+)'/gi);
+  for (const m of createdMatches) {
+    const rawPath = m[1];
+    const filename = rawPath.split(/[\/\\]/).pop() || '';
+    if (filename && !seen.has(filename)) {
+      seen.add(filename);
+      files.push(buildDeliverableInfo(filename));
+    }
+  }
+
+  // Pattern 2: [Deliverables Saved to Workspace]: file1, file2
+  const wsMatches = text.matchAll(/\[Deliverables Saved to Workspace\]:\s*([^\n]+)/gi);
+  for (const m of wsMatches) {
+    const rawNames = m[1].split(',');
+    for (const raw of rawNames) {
+      const filename = raw.trim();
+      if (filename && !seen.has(filename) && filename.includes('.')) {
+        seen.add(filename);
+        files.push(buildDeliverableInfo(filename));
+      }
+    }
+  }
+
+  // Pattern 3 removed: Hardcoded regexes caused "ghost files" because they matched
+  // the suffix of dynamically generated filenames (e.g. "Approval_Note.docx" matching
+  // the end of "FCCU_Pump_Approval_Note.docx"). Pattern 1 handles dynamic extraction.
+
+  return files;
+}
+
 export default function MessageList({
   messages = [],
   isLoading = false,
   onSelectPrompt,
+  activeChatId,
+  onOpenDeliverables,
 }: MessageListProps) {
   const [expandedReasoningMap, setExpandedReasoningMap] = useState<Record<string, boolean>>({});
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -298,6 +382,58 @@ export default function MessageList({
                     </div>
                   )
                 )}
+
+                {/* 2.5 In-Chat Interactive Deliverable Artifact Cards */}
+                {!isUser && !isStreaming && (() => {
+                  const delivs = extractDeliverablesFromMessage(msg);
+                  if (delivs.length === 0) return null;
+                  return (
+                    <div className="message-deliverables-container">
+                      <div className="message-deliverables-header">
+                        <CheckCircle2 size={14} className="deliverables-header-icon" />
+                        <span>Generated Engineering Deliverables</span>
+                        <span className="deliverables-count-tag">{delivs.length} Ready</span>
+                      </div>
+                      <div className="message-deliverables-grid">
+                        {delivs.map((d) => (
+                          <div key={d.filename} className={`deliverable-card card-${d.type}`}>
+                            <div className="deliverable-card-icon">
+                              {d.type === 'docx' && <FileText size={18} color="#0284c7" />}
+                              {d.type === 'xlsx' && <Sheet size={18} color="#10b981" />}
+                              {d.type === 'pptx' && <Presentation size={18} color="#f59e0b" />}
+                              {d.type === 'csv' && <Sheet size={18} color="#06b6d4" />}
+                              {d.type === 'py' && <FileCode size={18} color="#8b5cf6" />}
+                              {d.type === 'pdf' && <FileText size={18} color="#ef4444" />}
+                            </div>
+                            <div className="deliverable-card-details">
+                              <div className="deliverable-card-title">{d.filename}</div>
+                              <div className="deliverable-card-desc">{d.description}</div>
+                            </div>
+                            <button
+                              type="button"
+                              className="deliverable-download-action-btn"
+                              onClick={() => downloadDeliverable(activeChatId || 'default_chat', d.filename)}
+                              title={`Download ${d.filename}`}
+                            >
+                              <Download size={13} />
+                              <span>Download</span>
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                      {onOpenDeliverables && (
+                        <button
+                          type="button"
+                          className="view-all-deliverables-btn"
+                          onClick={onOpenDeliverables}
+                        >
+                          <FolderOpen size={12} />
+                          <span>Open All Workspace Deliverables</span>
+                        </button>
+                      )}
+                    </div>
+                  );
+                })()}
 
                 {/* User Message Action Footer */}
                 {isUser && hasContent && (

@@ -179,8 +179,8 @@ export interface AuthErrorResponse {
    5. CLIENT API CALLERS & STORAGE HELPERS
    ========================================================================== */
 
-const RAW_BACKEND_URL: string = (import.meta as any).env?.VITE_BACKEND_URL || '';
-const BACKEND_URL: string = RAW_BACKEND_URL.replace(/\/+$/, '');
+const RAW_AUTH_BACKEND_URL: string = (import.meta as any).env?.VITE_AUTH_BACKEND_URL || (import.meta as any).env?.VITE_BACKEND_URL || 'http://localhost:5000';
+const AUTH_BACKEND_URL: string = RAW_AUTH_BACKEND_URL.replace(/\/+$/, '');
 
 async function handleResponse<T>(res: Response): Promise<T> {
   const data = await res.json().catch(() => ({}));
@@ -196,7 +196,7 @@ async function handleResponse<T>(res: Response): Promise<T> {
 
 export async function fetchEmployeeDetails(
   req: FetchEmployeeDetailsRequest,
-  backendUrl: string = BACKEND_URL
+  backendUrl: string = AUTH_BACKEND_URL
 ): Promise<FetchEmployeeDetailsResponse> {
   const res = await fetch(`${backendUrl}${AUTH_ENDPOINTS.REGISTER_EMPLOYEE}`, {
     method: 'POST',
@@ -208,7 +208,7 @@ export async function fetchEmployeeDetails(
 
 export async function sendRegistrationOtp(
   req: SendRegistrationOtpRequest,
-  backendUrl: string = BACKEND_URL
+  backendUrl: string = AUTH_BACKEND_URL
 ): Promise<SendRegistrationOtpResponse> {
   const res = await fetch(`${backendUrl}${AUTH_ENDPOINTS.REGISTER_SEND_OTP}`, {
     method: 'POST',
@@ -220,7 +220,7 @@ export async function sendRegistrationOtp(
 
 export async function verifyRegistrationOtp(
   req: VerifyRegistrationOtpRequest,
-  backendUrl: string = BACKEND_URL
+  backendUrl: string = AUTH_BACKEND_URL
 ): Promise<VerifyRegistrationOtpResponse> {
   const res = await fetch(`${backendUrl}${AUTH_ENDPOINTS.REGISTER_VERIFY_OTP}`, {
     method: 'POST',
@@ -232,7 +232,7 @@ export async function verifyRegistrationOtp(
 
 export async function setRegistrationPassword(
   req: SetRegistrationPasswordRequest,
-  backendUrl: string = BACKEND_URL
+  backendUrl: string = AUTH_BACKEND_URL
 ): Promise<SetRegistrationPasswordResponse> {
   const res = await fetch(`${backendUrl}${AUTH_ENDPOINTS.REGISTER_SET_PASSWORD}`, {
     method: 'POST',
@@ -244,7 +244,7 @@ export async function setRegistrationPassword(
 
 export async function loginCredentials(
   req: LoginCredentialsRequest,
-  backendUrl: string = BACKEND_URL
+  backendUrl: string = AUTH_BACKEND_URL
 ): Promise<LoginCredentialsResponse> {
   const res = await fetch(`${backendUrl}${AUTH_ENDPOINTS.LOGIN}`, {
     method: 'POST',
@@ -256,7 +256,7 @@ export async function loginCredentials(
 
 export async function verifyLoginOtp(
   req: VerifyLoginOtpRequest,
-  backendUrl: string = BACKEND_URL
+  backendUrl: string = AUTH_BACKEND_URL
 ): Promise<VerifyLoginOtpResponse> {
   const res = await fetch(`${backendUrl}${AUTH_ENDPOINTS.LOGIN_VERIFY_OTP}`, {
     method: 'POST',
@@ -346,9 +346,7 @@ export function clearAuthSession(): void {
 export async function logoutSession(): Promise<void> {
   const sessionId = getStoredSessionId();
   try {
-    const rawUrl: string = (import.meta as any).env?.VITE_BACKEND_URL || '';
-    const backendUrl = rawUrl.replace(/\/+$/, '');
-    await fetch(`${backendUrl}/api/auth/logout`, {
+    await fetch(`${AUTH_BACKEND_URL}/api/auth/logout`, {
       method: 'POST',
       headers: getAuthHeaders(),
       body: JSON.stringify({ session_id: sessionId }),

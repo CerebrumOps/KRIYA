@@ -13,7 +13,7 @@
 
 import { getStoredAuthToken } from './auth_api';
 
-const RAW_BACKEND_URL: string = (import.meta as any).env?.VITE_BACKEND_URL || '';
+const RAW_BACKEND_URL: string = (import.meta as any).env?.VITE_AUTH_BACKEND_URL || (import.meta as any).env?.VITE_BACKEND_URL || 'http://localhost:5000';
 const BACKEND_URL: string = RAW_BACKEND_URL.replace(/\/+$/, '');
 
 export interface AdminEmployee {

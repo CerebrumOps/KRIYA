@@ -216,3 +216,13 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+workspace/users/
+*.db
+*.db-wal
+*.db-shm
+agent/data/
+
+workspace/*
+!workspace/.gitkeep
+
