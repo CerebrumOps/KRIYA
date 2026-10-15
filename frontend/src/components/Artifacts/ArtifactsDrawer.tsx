@@ -10,11 +10,14 @@ import {
   RefreshCw,
   FileCode,
   Inbox,
-  Loader2
+  Loader2,
+  HardDrive,
+  Check
 } from 'lucide-react';
 import {
   fetchDeliverables,
   downloadDeliverable,
+  shareDeliverableToHost,
   DeliverableItem
 } from '../../api/workspace_api';
 
@@ -32,6 +35,8 @@ export default function ArtifactsDrawer({
   const [artifacts, setArtifacts] = useState<DeliverableItem[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const [sharingId, setSharingId] = useState<string | null>(null);
+  const [sharedIds, setSharedIds] = useState<Set<string>>(new Set());
 
   const loadDeliverables = useCallback(async () => {
     if (!activeChatId) {
@@ -66,6 +71,30 @@ export default function ArtifactsDrawer({
       alert(`Download failed: ${err.message || String(err)}`);
     } finally {
       setDownloadingId(null);
+    }
+  };
+
+  const handleShareToHost = async (filename: string, id: string) => {
+    if (!activeChatId) return;
+    setSharingId(id);
+    try {
+      const res = await shareDeliverableToHost(activeChatId, filename);
+      if (res.success) {
+        setSharedIds((prev) => new Set(prev).add(id));
+        setTimeout(() => {
+          setSharedIds((prev) => {
+            const next = new Set(prev);
+            next.delete(id);
+            return next;
+          });
+        }, 4000);
+      } else {
+        alert(`Export failed: ${res.message}`);
+      }
+    } catch (err: any) {
+      alert(`Export failed: ${err.message || String(err)}`);
+    } finally {
+      setSharingId(null);
     }
   };
 
@@ -187,8 +216,9 @@ export default function ArtifactsDrawer({
         <span>
           Chat Scope: <strong style={{ color: 'var(--text-main, #0f172a)' }}>{activeChatId ? activeChatId.slice(0, 14) + (activeChatId.length > 14 ? '...' : '') : 'None'}</strong>
         </span>
-        <span style={{ fontSize: 10.5, color: '#0e7490' }}>
-          Air-gapped Storage
+        <span style={{ fontSize: 10.5, color: '#0e7490', display: 'flex', alignItems: 'center', gap: 4 }}>
+          <HardDrive size={11} />
+          <span>Host Bridge: ~/kriya-shared</span>
         </span>
       </div>
 
@@ -363,32 +393,72 @@ export default function ArtifactsDrawer({
                   <span>•</span>
                   <span>{art.generated_at}</span>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => handleDownload(art.name, art.id)}
-                  disabled={downloadingId === art.id}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 5,
-                    padding: '5px 12px',
-                    borderRadius: 4,
-                    border: '1px solid var(--border-color, #cbd5e1)',
-                    backgroundColor: 'var(--bg-subtle, #f8fafc)',
-                    fontSize: 11.5,
-                    fontWeight: 500,
-                    cursor: downloadingId === art.id ? 'not-allowed' : 'pointer',
-                    color: '#0e7490',
-                    transition: 'background 0.15s ease',
-                  }}
-                >
-                  {downloadingId === art.id ? (
-                    <Loader2 size={12} className="animate-spin" />
-                  ) : (
-                    <Download size={12} />
-                  )}
-                  <span>Download</span>
-                </button>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <button
+                    type="button"
+                    onClick={() => handleDownload(art.name, art.id)}
+                    disabled={downloadingId === art.id}
+                    title={`Download ${art.name} to your browser`}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 4,
+                      padding: '4px 10px',
+                      borderRadius: 4,
+                      border: '1px solid var(--border-color, #cbd5e1)',
+                      backgroundColor: 'var(--bg-subtle, #f8fafc)',
+                      fontSize: 11,
+                      fontWeight: 500,
+                      cursor: downloadingId === art.id ? 'not-allowed' : 'pointer',
+                      color: '#0e7490',
+                      transition: 'background 0.15s ease',
+                    }}
+                  >
+                    {downloadingId === art.id ? (
+                      <Loader2 size={12} className="animate-spin" />
+                    ) : (
+                      <Download size={12} />
+                    )}
+                    <span>Download</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleShareToHost(art.name, art.id)}
+                    disabled={sharingId === art.id}
+                    title="Export file directly to host machine shared folder (~/kriya-shared)"
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 4,
+                      padding: '4px 10px',
+                      borderRadius: 4,
+                      border: sharedIds.has(art.id)
+                        ? '1px solid #a7f3d0'
+                        : '1px solid var(--border-color, #cbd5e1)',
+                      backgroundColor: sharedIds.has(art.id) ? '#ecfdf5' : 'var(--bg-subtle, #f8fafc)',
+                      fontSize: 11,
+                      fontWeight: 500,
+                      cursor: sharingId === art.id ? 'not-allowed' : 'pointer',
+                      color: sharedIds.has(art.id) ? '#059669' : '#0e7490',
+                      transition: 'all 0.15s ease',
+                    }}
+                  >
+                    {sharingId === art.id ? (
+                      <Loader2 size={12} className="animate-spin" />
+                    ) : sharedIds.has(art.id) ? (
+                      <Check size={12} />
+                    ) : (
+                      <HardDrive size={12} />
+                    )}
+                    <span>
+                      {sharingId === art.id
+                        ? 'Sending...'
+                        : sharedIds.has(art.id)
+                        ? 'Sent to Host'
+                        : 'Send to Host'}
+                    </span>
+                  </button>
+                </div>
               </div>
             </div>
           ))

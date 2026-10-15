@@ -1,20 +1,37 @@
 {
   "mcpServers": {
-    "sovereign_company_db": {
-      "url": "http://100.127.46.50:8085/sse",
+    "crpl_gateway": {
+      "url": "http://100.98.154.51:8085/sse",
       "transport": "sse",
-      "node": "Raspberry Pi 5 (Tailscale: 100.127.46.50)",
-      "description": "Sovereign Company Database & SCADA Telemetry FastMCP Appliance",
+      "node": "Raspberry Pi 5 (Tailscale: 100.98.154.51)",
+      "description": "Sovereign Air-Gapped MCP Gateway with 26 refinery tools & RBAC handshake",
       "tools": [
-        "get_all_refinery_units",
-        "get_unit_equipment",
-        "get_equipment_detail",
-        "get_inspection_history",
-        "get_critical_tml_readings",
-        "search_approval_notes",
-        "get_material_and_stock",
-        "get_live_mcp_telemetry",
-        "get_all_mcp_units_status"
+        "handshake_authenticate",
+        "get_current_session",
+        "list_employees_for_auth",
+        "logout_session",
+        "get_refinery_units",
+        "get_equipment",
+        "get_line_list",
+        "query_telemetry",
+        "get_thickness_history",
+        "get_inspection_reports",
+        "get_integrity_findings",
+        "get_turnaround_plan",
+        "get_work_orders",
+        "get_standards_register",
+        "get_vendors",
+        "get_rate_contracts",
+        "get_department_budget",
+        "get_delegation_of_authority",
+        "get_commercial_bids",
+        "get_capex_proposals",
+        "get_hse_incidents",
+        "get_permits_to_work",
+        "get_moc_records",
+        "search_documents",
+        "get_document_content",
+        "run_read_only_sql"
       ]
     }
   }

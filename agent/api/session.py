@@ -75,6 +75,7 @@ async def get_current_session(
         "name": payload.get("name", "Operator"),
         "email": payload.get("email", ""),
         "role": payload.get("role", "engineer"),
+        "clearance_level": payload.get("clearance_level", 1),
         "permissions": payload.get("permissions", []),
     }
 

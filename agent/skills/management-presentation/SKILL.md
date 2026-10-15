@@ -1,7 +1,7 @@
 ---
 name: management-presentation
-description: Specialized skill for synthesizing multi-source refinery findings and cost summaries into an executive PowerPoint (.pptx) presentation deck and supporting Excel (.xlsx) workbook, with cross-artifact numerical consistency.
-version: 1.0.0
+description: Specialized skill for synthesizing multi-source refinery findings, vendor bids, and cost summaries into an executive PowerPoint (.pptx) deck and supporting Excel (.xlsx) workbook with formal DOA Signature columns.
+version: 2.0.0
 triggers:
   - management presentation
   - powerpoint
@@ -11,25 +11,24 @@ triggers:
   - board review
   - cost analysis
 tools:
+  - generate_powerpoint_deck
+  - generate_excel_spreadsheet
+  - generate_word_document
   - execute_terminal_command
-  - load_skill
 ---
 
 # Management Presentation & Cross-Artifact Synthesis Skill
 
 ## Purpose
-Synthesizes complex technical data, inspection anomalies, and maintenance expenditure into executive-ready deliverables for MRPL leadership and board presentations.
+Synthesizes technical inspection anomalies, API 510 remaining-life calculations, vendor bids, and maintenance expenditure into executive-ready deliverables for CRPL / MRPL leadership and board committees.
 
 ## Operational Workflow
 1. **Source Data Aggregation**:
-   - Ingest inspection findings, severity levels, equipment downtime impact, and procurement line items.
-2. **Spreadsheet Modeling (`.xlsx`)**:
-   - Load `xlsx-generation` skill via `load_skill("xlsx-generation")`.
-   - Write and run Python script with `openpyxl` to build itemized cost spreadsheet with formulas.
+   - Retrieve equipment specs, CML thickness readings, turnaround schedules, vendor rate contracts/bids, department budgets, and DOA thresholds via the FastMCP tools.
+2. **Detailed Spreadsheet Workbook (`.xlsx`)**:
+   - Call **`generate_excel_spreadsheet`** with multiple `sheets` (`Executive Budget Summary`, `CML Corrosion Data`, `Vendor Bid Comparison`) and `include_signature_block=True` so the summary sheet includes the full **Verification, Concurrence & Signature Block**.
 3. **Executive Presentation Deck (`.pptx`)**:
-   - Load `pptx-generation` skill via `load_skill("pptx-generation")`.
-   - Write and run Python script with `python-pptx` to build 16:9 widescreen presentation deck.
-4. **Cross-Artifact Consistency Verification**:
-   - Validate numerical equality between the Excel sheet and the PowerPoint slides by inspecting both artifacts with Python:
-     * Check: `Excel Total == PPT Total`
-     * Check: `Critical Findings Count == PPT Findings Count`
+   - Call **`generate_powerpoint_deck`** with structured `slides` (KPI Callout Cards + Technical/Financial Bullet Slides) and `include_signoff_slide=True` so the deck concludes with the **Governance & DOA Signature Matrix** slide.
+4. **Cross-Artifact Consistency & Registration**:
+   - Ensure identical numerical figures across all generated files (e.g., `0.35 mm/yr` corrosion rate, `2.00 Years` remaining life, `₹12,50,000` Apex PetroTech cost, `₹18,50,000` `CC-10-CDU` budget).
+   - Output a `[Deliverable Created]: <Title> saved to '<filename>'` line for every generated artifact so each file renders an in-chat download card.

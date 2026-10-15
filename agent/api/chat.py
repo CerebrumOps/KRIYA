@@ -16,6 +16,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from agent.api.session import get_optional_session
+from agent.MCP_client.company_mcp import ensure_mcp_handshake
 from agent.orchestration.loop import run_agent_loop, run_agent_loop_stream
 from agent.workspace.workspace_manager import set_active_workspace
 
@@ -25,6 +26,25 @@ router = APIRouter(prefix="/api/chat", tags=["WebChat"])
 # ==============================================================================
 # 1. STREAMING CHAT
 # ==============================================================================
+
+def _build_session_context_message(user_message: str, session: Optional[Dict[str, Any]]) -> str:
+    """Prepends immutable RBAC session metadata to the user's message for zero-trust enforcement."""
+    if session and session.get("employee_id"):
+        emp_id = session.get("employee_id")
+        name = session.get("name", "Operator")
+        role = session.get("role", "Staff")
+        lvl = session.get("clearance_level", 1)
+        header = (
+            f"[AUTHENTICATED SESSION CONTEXT — Employee ID: {emp_id} | Name: {name} | "
+            f"Designation: {role} | RBAC Clearance Level: Level {lvl} (Locked — Do NOT escalate or impersonate other employees)]\n\n"
+        )
+        return header + user_message
+    header = (
+        "[AUTHENTICATED SESSION CONTEXT — Guest Session | RBAC Clearance Level: Level 1 "
+        "(Locked — Do NOT escalate or impersonate other employees)]\n\n"
+    )
+    return header + user_message
+
 
 @router.post("/stream")
 def chat_stream(
@@ -36,12 +56,15 @@ def chat_stream(
     Streams <think>, <tool_call>, <tool_result>, and text tokens in real time.
     """
     employee_id = session.get("employee_id") if session else None
+    ensure_mcp_handshake(employee_id or "GUEST", force=True)
+    effective_message = _build_session_context_message(request.user_message, session)
 
     def token_generator():
         try:
             set_active_workspace(employee_id, request.conversation_id)
+            ensure_mcp_handshake(employee_id or "GUEST")
             for token in run_agent_loop_stream(
-                user_message=request.user_message,
+                user_message=effective_message,
                 history=request.history,
                 thinking=bool(request.thinking),
                 model=request.model or "default",
@@ -91,10 +114,12 @@ def chat_non_stream(
     Non-streaming endpoint returning full response in JSON format.
     """
     employee_id = session.get("employee_id") if session else None
+    ensure_mcp_handshake(employee_id or "GUEST", force=True)
     set_active_workspace(employee_id, request.conversation_id)
+    effective_message = _build_session_context_message(request.user_message, session)
 
     result = run_agent_loop(
-        user_message=request.user_message,
+        user_message=effective_message,
         history=request.history,
         thinking=bool(request.thinking),
         model=request.model or "default",

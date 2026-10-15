@@ -2,11 +2,11 @@
 # KRIYA - Central Tools Registry
 # ==============================================================================
 # Registers all available sovereign industrial tools and their OpenAI schemas.
-# 1. TOOLS_MAP: Dictionary linking tool function names to actual Python functions
+# 1. TOOLS_MAP: Dictionary linking local tool names to Python functions
 # 2. BASE_TOOLS_SCHEMA: Base container and workbench tool schemas
 # 3. get_active_tools_schema: Combines base tools with live, dynamically fetched
-#    MCP tool schemas from the sovereign FastMCP server
-# 4. execute_tool: Helper function to execute any tool by name
+#    MCP tool schemas (26 tools) from the sovereign FastMCP server on Raspberry Pi
+# 4. execute_tool: Dispatches tool by name (local tool or remote FastMCP call)
 # ==============================================================================
 
 import json
@@ -20,10 +20,12 @@ from agent.tools.host_bridge import (
     write_host_file,
     list_host_files,
     execute_host_command,
+    share_file_to_host,
     READ_HOST_FILE_SCHEMA,
     WRITE_HOST_FILE_SCHEMA,
     LIST_HOST_FILES_SCHEMA,
     EXECUTE_HOST_COMMAND_SCHEMA,
+    SHARE_FILE_TO_HOST_SCHEMA,
 )
 from agent.tools.skill_tools import (
     list_available_skills,
@@ -39,46 +41,21 @@ from agent.subagents.memory_agent import (
     STORE_MEMORY_SCHEMA,
     RETRIEVE_MEMORY_SCHEMA,
 )
+from agent.tools.ocr_tool import ocr_extract_text, OCR_TOOL_SCHEMA
+from agent.tools.document_generators import (
+    generate_word_document,
+    generate_excel_spreadsheet,
+    generate_powerpoint_deck,
+    GENERATE_WORD_DOCUMENT_SCHEMA,
+    GENERATE_EXCEL_SPREADSHEET_SCHEMA,
+    GENERATE_POWERPOINT_DECK_SCHEMA,
+)
 from agent.MCP_client.company_mcp import (
     call_fastmcp_tool,
     fetch_dynamic_mcp_schemas,
-    get_live_mcp_telemetry,
-    get_all_mcp_units_status,
 )
 
-# 1. SCADA Telemetry & Plant Status REST Adapters Schemas
-GET_LIVE_MCP_TELEMETRY_SCHEMA = {
-    "type": "function",
-    "function": {
-        "name": "get_live_mcp_telemetry",
-        "description": "Queries live refinery SCADA sensors and active alarms from the MRPL FastMCP server (e.g. CDU-II, FCCU, DHT, HGU).",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "unit_tag": {
-                    "type": "string",
-                    "description": "Refinery unit tag (e.g. 'CDU-II', 'FCCU', 'DHT', 'HGU')"
-                }
-            },
-            "required": ["unit_tag"]
-        }
-    }
-}
-
-GET_ALL_MCP_UNITS_STATUS_SCHEMA = {
-    "type": "function",
-    "function": {
-        "name": "get_all_mcp_units_status",
-        "description": "Retrieves real-time plant-wide health scores and active alarms across all refinery operating units from the FastMCP server.",
-        "parameters": {
-            "type": "object",
-            "properties": {},
-            "required": []
-        }
-    }
-}
-
-# 2. Dictionary mapping base tool names directly to Python functions
+# 1. Dictionary mapping base tool names directly to Python functions
 TOOLS_MAP: Dict[str, Any] = {
     # System & Terminals (Container OS Root Shell)
     "execute_terminal_command": execute_terminal_command,
@@ -90,6 +67,12 @@ TOOLS_MAP: Dict[str, Any] = {
     "write_host_file": write_host_file,
     "list_host_files": list_host_files,
     "execute_host_command": execute_host_command,
+    "share_file_to_host": share_file_to_host,
+
+    # Enterprise Deliverable & Document Generators (with Metadata & Signature Blocks)
+    "generate_word_document": generate_word_document,
+    "generate_excel_spreadsheet": generate_excel_spreadsheet,
+    "generate_powerpoint_deck": generate_powerpoint_deck,
 
     # Progressive Skill & MCP Discovery
     "list_available_skills": list_available_skills,
@@ -100,12 +83,12 @@ TOOLS_MAP: Dict[str, Any] = {
     "store_agent_memory": store_agent_memory,
     "search_and_summarize_memories": search_and_summarize_memories,
 
-    # SCADA Telemetry Adapters
-    "get_live_mcp_telemetry": get_live_mcp_telemetry,
-    "get_all_mcp_units_status": get_all_mcp_units_status,
+    # Sovereign OCR & Document Parser (Photos, Scans, PDFs)
+    "ocr_extract_text": ocr_extract_text,
+    "extract_document_text": ocr_extract_text,
 }
 
-# 3. Base tool schemas for local container and workbench tools
+# 2. Base tool schemas for local container and workbench tools
 BASE_TOOLS_SCHEMA: List[Dict[str, Any]] = [
     # Terminals & Search
     TERMINAL_TOOL_SCHEMA,
@@ -117,6 +100,15 @@ BASE_TOOLS_SCHEMA: List[Dict[str, Any]] = [
     WRITE_HOST_FILE_SCHEMA,
     LIST_HOST_FILES_SCHEMA,
     EXECUTE_HOST_COMMAND_SCHEMA,
+    SHARE_FILE_TO_HOST_SCHEMA,
+
+    # Enterprise Deliverable & Document Generators
+    GENERATE_WORD_DOCUMENT_SCHEMA,
+    GENERATE_EXCEL_SPREADSHEET_SCHEMA,
+    GENERATE_POWERPOINT_DECK_SCHEMA,
+
+    # Sovereign OCR & Document Parser
+    OCR_TOOL_SCHEMA,
 
     # Progressive Skill Discovery
     LIST_AVAILABLE_SKILLS_SCHEMA,
@@ -126,10 +118,6 @@ BASE_TOOLS_SCHEMA: List[Dict[str, Any]] = [
     # Subagent Tools
     STORE_MEMORY_SCHEMA,
     RETRIEVE_MEMORY_SCHEMA,
-
-    # SCADA Telemetry
-    GET_LIVE_MCP_TELEMETRY_SCHEMA,
-    GET_ALL_MCP_UNITS_STATUS_SCHEMA,
 ]
 
 
@@ -138,7 +126,7 @@ def get_active_tools_schema(force_refresh: bool = False) -> List[Dict[str, Any]]
     Returns the complete list of active tool schemas for the LLM:
     1. Base container & workbench tools (terminals, bridge, memory, skills)
     2. Dynamic tools fetched from the sovereign FastMCP server via tools/list
-       with full OpenAI-style parameter descriptions and constraints.
+       with full OpenAI-style parameter descriptions and constraints (26 tools).
     """
     dynamic_mcp_tools = fetch_dynamic_mcp_schemas(force_refresh=force_refresh)
     return list(BASE_TOOLS_SCHEMA) + dynamic_mcp_tools
@@ -151,7 +139,7 @@ def __getattr__(name: str) -> Any:
     raise AttributeError(f"module {__name__} has no attribute '{name}'")
 
 
-# 4. Helper function to call a tool by name with arguments
+# 3. Helper function to call a tool by name with arguments
 def execute_tool(tool_name: str, arguments: Any) -> str:
     """
     Executes the registered tool function matching `tool_name`

@@ -25,12 +25,13 @@ import {
   FileCode,
   Download,
   FolderOpen,
-  CheckCircle2
+  CheckCircle2,
+  HardDrive
 } from 'lucide-react';
 import MarkdownRenderer from './MarkdownRenderer';
 import { ErrorInfo } from '../../utils/errorHandler';
 import { copyTextToClipboard } from '../../utils/clipboard';
-import { downloadDeliverable } from '../../api/workspace_api';
+import { downloadDeliverable, shareDeliverableToHost } from '../../api/workspace_api';
 
 export interface MessageMeta {
   model?: string;
@@ -135,15 +136,29 @@ function extractDeliverablesFromMessage(msg: UIMessage): ExtractedDeliverable[] 
   const files: ExtractedDeliverable[] = [];
   const seen = new Set<string>();
 
-  // Pattern 1: [Deliverable Created]: ... saved to '.../filename.ext'
-  const createdMatches = text.matchAll(/\[Deliverable Created\]:.*?saved to '([^']+)'/gi);
-  for (const m of createdMatches) {
-    const rawPath = m[1];
-    const filename = rawPath.split(/[\/\\]/).pop() || '';
-    if (filename && !seen.has(filename)) {
-      seen.add(filename);
-      files.push(buildDeliverableInfo(filename));
+  const addFile = (rawPathOrName: string) => {
+    if (!rawPathOrName) return;
+    const clean = rawPathOrName.trim().replace(/^['"`\\(\[]+|['"`\\)\].,;]+$/g, '');
+    const filename = clean.split(/[\/\\]/).pop() || '';
+    if (
+      filename &&
+      filename.includes('.') &&
+      !seen.has(filename.toLowerCase()) &&
+      !filename.endsWith('.tmp') &&
+      !filename.endsWith('.pyc')
+    ) {
+      const ext = filename.split('.').pop()?.toLowerCase();
+      if (['docx', 'xlsx', 'pptx', 'csv', 'pdf', 'py', 'json', 'png', 'txt'].includes(ext || '')) {
+        seen.add(filename.toLowerCase());
+        files.push(buildDeliverableInfo(filename));
+      }
     }
+  };
+
+  // Pattern 1: [Deliverable Created]: ... saved to '.../filename.ext'
+  const createdMatches = text.matchAll(/\[Deliverable Created\]:.*?saved to ['"]?([^'"\n\r]+)['"]?/gi);
+  for (const m of createdMatches) {
+    addFile(m[1]);
   }
 
   // Pattern 2: [Deliverables Saved to Workspace]: file1, file2
@@ -151,17 +166,33 @@ function extractDeliverablesFromMessage(msg: UIMessage): ExtractedDeliverable[] 
   for (const m of wsMatches) {
     const rawNames = m[1].split(',');
     for (const raw of rawNames) {
-      const filename = raw.trim();
-      if (filename && !seen.has(filename) && filename.includes('.')) {
-        seen.add(filename);
-        files.push(buildDeliverableInfo(filename));
-      }
+      addFile(raw);
     }
   }
 
-  // Pattern 3 removed: Hardcoded regexes caused "ghost files" because they matched
-  // the suffix of dynamically generated filenames (e.g. "Approval_Note.docx" matching
-  // the end of "FCCU_Pump_Approval_Note.docx"). Pattern 1 handles dynamic extraction.
+  // Pattern 3: [Host Shared]: ... File 'filename.ext'
+  const hostMatches = text.matchAll(/\[Host Shared(?: Success)?\]:.*?(?:File|file) ['"]?([^'"\s]+)['"]?/gi);
+  for (const m of hostMatches) {
+    addFile(m[1]);
+  }
+
+  // Pattern 4: Markdown download links e.g. [Download report.docx](...)
+  const linkMatches = text.matchAll(/\[(?:Download\s+)?([a-zA-Z0-9_.-]+\.(?:docx|xlsx|pptx|csv|pdf|py|json|png|txt))\]/gi);
+  for (const m of linkMatches) {
+    addFile(m[1]);
+  }
+
+  // Pattern 5: Keywords: "Deliverable: file.ext", "Saved to file.ext", "Exported to file.ext"
+  const keywordMatches = text.matchAll(/(?:deliverable|generated file|report file|saved file|exported to|created file)[:\s]+[`'"]?([a-zA-Z0-9_.-]+\.(?:docx|xlsx|pptx|csv|pdf|py|json|png|txt))[`'"]?/gi);
+  for (const m of keywordMatches) {
+    addFile(m[1]);
+  }
+
+  // Pattern 6: Standalone filenames matching common industrial extensions formatted in markdown bold or backticks
+  const codeFilenames = text.matchAll(/[`*]([a-zA-Z0-9_.-]+\.(?:docx|xlsx|pptx|pdf|csv))[`*]/gi);
+  for (const m of codeFilenames) {
+    addFile(m[1]);
+  }
 
   return files;
 }
@@ -175,6 +206,32 @@ export default function MessageList({
 }: MessageListProps) {
   const [expandedReasoningMap, setExpandedReasoningMap] = useState<Record<string, boolean>>({});
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [sharingFile, setSharingFile] = useState<string | null>(null);
+  const [sharedFiles, setSharedFiles] = useState<Set<string>>(new Set());
+
+  const handleShareToHost = async (filename: string) => {
+    const targetChat = activeChatId || 'default_chat';
+    setSharingFile(filename);
+    try {
+      const res = await shareDeliverableToHost(targetChat, filename);
+      if (res.success) {
+        setSharedFiles((prev) => new Set(prev).add(filename));
+        setTimeout(() => {
+          setSharedFiles((prev) => {
+            const next = new Set(prev);
+            next.delete(filename);
+            return next;
+          });
+        }, 4000);
+      } else {
+        alert(`Sharing failed: ${res.message}`);
+      }
+    } catch (err: any) {
+      alert(`Sharing failed: ${err.message || String(err)}`);
+    } finally {
+      setSharingFile(null);
+    }
+  };
 
   const containerRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -409,15 +466,39 @@ export default function MessageList({
                               <div className="deliverable-card-title">{d.filename}</div>
                               <div className="deliverable-card-desc">{d.description}</div>
                             </div>
-                            <button
-                              type="button"
-                              className="deliverable-download-action-btn"
-                              onClick={() => downloadDeliverable(activeChatId || 'default_chat', d.filename)}
-                              title={`Download ${d.filename}`}
-                            >
-                              <Download size={13} />
-                              <span>Download</span>
-                            </button>
+                            <div className="deliverable-card-actions">
+                              <button
+                                type="button"
+                                className="deliverable-download-action-btn"
+                                onClick={() => downloadDeliverable(activeChatId || 'default_chat', d.filename)}
+                                title={`Download ${d.filename} to your browser`}
+                              >
+                                <Download size={13} />
+                                <span>Download</span>
+                              </button>
+                              <button
+                                type="button"
+                                className={`deliverable-share-host-btn ${sharedFiles.has(d.filename) ? 'shared-success' : ''}`}
+                                onClick={() => handleShareToHost(d.filename)}
+                                disabled={sharingFile === d.filename}
+                                title={`Copy ${d.filename} directly to host ~/kriya-shared`}
+                              >
+                                {sharingFile === d.filename ? (
+                                  <Loader2 size={13} className="animate-spin" />
+                                ) : sharedFiles.has(d.filename) ? (
+                                  <Check size={13} />
+                                ) : (
+                                  <HardDrive size={13} />
+                                )}
+                                <span>
+                                  {sharingFile === d.filename
+                                    ? 'Sending...'
+                                    : sharedFiles.has(d.filename)
+                                    ? 'Sent to Host'
+                                    : 'Send to Host'}
+                                </span>
+                              </button>
+                            </div>
                           </div>
                         ))}
                       </div>

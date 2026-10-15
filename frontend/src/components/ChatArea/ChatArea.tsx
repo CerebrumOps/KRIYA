@@ -31,6 +31,7 @@ export default function ChatArea({
       <ChatInput 
         onSendMessage={onSendMessage} 
         disabled={isLoading} 
+        activeChatId={activeChatId}
       />
     </main>
   );

@@ -1,10 +1,12 @@
 # ==============================================================================
-# KRIYA MCP Client: Sovereign Company Database & Dynamic MCP Integration
+# KRIYA MCP Client: Sovereign Company Database & FastMCP Gateway Integration
 # ==============================================================================
-# Connects dynamically to the MRPL FastMCP Server running on the Raspberry Pi node.
-# Zero hardcoded tool schemas: dynamically queries tools/list via JSON-RPC over SSE,
-# transforms MCP schemas into OpenAI function calling format, and dispatches
-# tools/call when requested by the model.
+# Connects dynamically to the Sovereign FastMCP Gateway running on Raspberry Pi 5.
+# Implements the official protocol from MCP_DOCUMENTATION.md:
+# - Dynamic tool schema discovery via JSON-RPC over SSE (tools/list)
+# - Tool invocation via JSON-RPC over SSE (tools/call)
+# - Handshake authentication protocol (handshake_authenticate) for multi-tier RBAC
+# - Safe Read-Only guarantee (hardware enforced on PostgreSQL company_db)
 # ==============================================================================
 
 import json
@@ -22,15 +24,18 @@ logger = logging.getLogger("kriya.mcp")
 env_path = Path(__file__).resolve().parent.parent.parent / ".env"
 load_dotenv(dotenv_path=env_path)
 
-REMOTE_MCP_URL = os.getenv("REMOTE_MCP_URL", "http://100.127.46.50:8085")
+REMOTE_MCP_URL = os.getenv("REMOTE_MCP_URL", "http://100.98.154.51:8085")
 
 # In-memory schema cache to prevent repeated SSE handshakes on every turn
 _MCP_SCHEMA_CACHE: List[Dict[str, Any]] = []
 _MCP_CACHE_TIMESTAMP: float = 0.0
 _MCP_CACHE_TTL: float = 120.0  # 2 minutes TTL
 
+# Track active handshaked employee code on gateway
+_CURRENT_HANDSHAKE_EMP: Optional[str] = None
 
-def fetch_dynamic_mcp_schemas(force_refresh: bool = False, timeout: float = 5.0) -> List[Dict[str, Any]]:
+
+def fetch_dynamic_mcp_schemas(force_refresh: bool = False, timeout: float = 12.0) -> List[Dict[str, Any]]:
     """
     Dynamically queries the remote FastMCP server (tools/list) and converts
     each discovered tool into standard OpenAI function calling format:
@@ -90,14 +95,19 @@ def fetch_dynamic_mcp_schemas(force_refresh: bool = False, timeout: float = 5.0)
         )
 
         # 4. Read response from SSE stream
-        for _ in range(20):
+        for _ in range(25):
             line = resp.readline().decode("utf-8")
             if line.startswith("data:"):
                 msg = json.loads(line.replace("data: ", ""))
                 if msg.get("id") == 2:
                     raw_tools = msg.get("result", {}).get("tools", [])
                     openai_tools = []
+                    # Never expose session-switching tools to the LLM to prevent RBAC privilege escalation
+                    blocked_llm_tools = {"handshake_authenticate", "reset_session_to_guest"}
                     for t in raw_tools:
+                        t_name = t.get("name", "")
+                        if t_name in blocked_llm_tools:
+                            continue
                         input_schema = t.get("inputSchema") or {}
                         properties = input_schema.get("properties", {})
                         required = input_schema.get("required", [])
@@ -105,7 +115,7 @@ def fetch_dynamic_mcp_schemas(force_refresh: bool = False, timeout: float = 5.0)
                         openai_tools.append({
                             "type": "function",
                             "function": {
-                                "name": t.get("name", ""),
+                                "name": t_name,
                                 "description": t.get("description", ""),
                                 "parameters": {
                                     "type": "object",
@@ -117,20 +127,20 @@ def fetch_dynamic_mcp_schemas(force_refresh: bool = False, timeout: float = 5.0)
 
                     _MCP_SCHEMA_CACHE = openai_tools
                     _MCP_CACHE_TIMESTAMP = now
+                    logger.info(f"Discovered {len(openai_tools)} tools from FastMCP gateway at {REMOTE_MCP_URL}")
                     return _MCP_SCHEMA_CACHE
 
     except Exception as e:
         logger.warning(f"Could not dynamically discover tools from FastMCP at {REMOTE_MCP_URL}: {e}")
-        # Return stale cache if available
         if _MCP_SCHEMA_CACHE:
             return _MCP_SCHEMA_CACHE
 
     return []
 
 
-def call_fastmcp_tool(tool_name: str, arguments: Optional[Dict[str, Any]] = None, timeout: float = 6.0) -> str:
+def _raw_call_fastmcp(tool_name: str, arguments: Optional[Dict[str, Any]] = None, timeout: float = 12.0) -> str:
     """
-    Executes any dynamically discovered tool on the remote FastMCP server using JSON-RPC over SSE.
+    Low-level JSON-RPC over SSE call to the remote FastMCP server.
     """
     arguments = arguments or {}
     base_url = REMOTE_MCP_URL.rstrip("/")
@@ -170,7 +180,7 @@ def call_fastmcp_tool(tool_name: str, arguments: Optional[Dict[str, Any]] = None
         urllib.request.urlopen(call_req, timeout=timeout)
 
         # 4. Read SSE response stream for tool result
-        while True:
+        for _ in range(30):
             line = resp.readline().decode("utf-8")
             if line.startswith("data:"):
                 msg_data = json.loads(line.replace("data: ", ""))
@@ -181,8 +191,80 @@ def call_fastmcp_tool(tool_name: str, arguments: Optional[Dict[str, Any]] = None
                         return content[0].get("text", json.dumps(res, indent=2))
                     return json.dumps(res, indent=2)
 
+        return "[Error]: MCP tool call timed out waiting for response."
+
     except Exception as e:
         return f"[Error executing MCP tool '{tool_name}' on server {REMOTE_MCP_URL}]: {str(e)}"
+
+
+def call_fastmcp_tool(tool_name: str, arguments: Optional[Dict[str, Any]] = None, timeout: float = 12.0) -> str:
+    """
+    Executes a tool on the remote FastMCP server while strictly enforcing the
+    logged-in employee's RBAC identity. Blocks any LLM attempt to escalate privileges
+    via handshake_authenticate or reset_session_to_guest.
+    """
+    arguments = arguments or {}
+
+    try:
+        from agent.workspace.workspace_manager import get_active_employee_id
+        active_emp = get_active_employee_id()
+    except Exception:
+        active_emp = None
+
+    # Block LLM from switching or spoofing employee identity
+    if tool_name in ("handshake_authenticate", "reset_session_to_guest"):
+        requested_emp = arguments.get("emp_code")
+        if active_emp and requested_emp and requested_emp.strip().upper() != active_emp.strip().upper():
+            return json.dumps({
+                "status": "ACCESS_DENIED",
+                "error": "RBAC_PRIVILEGE_ESCALATION_BLOCKED",
+                "message": (
+                    f"Security Violation: Session is cryptographically locked to authenticated employee '{active_emp}'. "
+                    f"Switching or impersonating employee '{requested_emp}' is strictly forbidden."
+                ),
+            })
+        if active_emp:
+            ensure_mcp_handshake(active_emp, force=True)
+            return _raw_call_fastmcp("get_current_session", {}, timeout=timeout)
+
+    # Always ensure the gateway session matches the logged-in user before running any tool
+    if active_emp and active_emp != "default_user":
+        ensure_mcp_handshake(active_emp)
+    else:
+        ensure_mcp_handshake("GUEST")
+
+    return _raw_call_fastmcp(tool_name, arguments, timeout=timeout)
+
+
+def ensure_mcp_handshake(emp_code: Optional[str], force: bool = False) -> Optional[str]:
+    """
+    Ensures that the FastMCP gateway has established session authentication
+    for the given logged-in employee code, or resets to guest if unauthenticated.
+    """
+    global _CURRENT_HANDSHAKE_EMP
+    normalized = (emp_code or "GUEST").strip().upper()
+    if normalized in ("", "DEFAULT_USER", "GUEST", "NONE"):
+        if not force and _CURRENT_HANDSHAKE_EMP == "GUEST":
+            return None
+        try:
+            result = _raw_call_fastmcp("reset_session_to_guest", {})
+            _CURRENT_HANDSHAKE_EMP = "GUEST"
+            logger.info("FastMCP gateway session reset to GUEST (Clearance Level 1).")
+            return result
+        except Exception as e:
+            logger.warning(f"Could not reset MCP session to guest: {e}")
+            return None
+
+    if not force and _CURRENT_HANDSHAKE_EMP == normalized:
+        return None
+    try:
+        result = _raw_call_fastmcp("handshake_authenticate", {"emp_code": normalized})
+        _CURRENT_HANDSHAKE_EMP = normalized
+        logger.info(f"Handshake locked to authenticated employee {normalized} on FastMCP gateway.")
+        return result
+    except Exception as e:
+        logger.warning(f"Could not perform MCP handshake for {normalized}: {e}")
+        return None
 
 
 def discover_mcp_tools(timeout: float = 5.0) -> str:
@@ -195,45 +277,5 @@ def discover_mcp_tools(timeout: float = 5.0) -> str:
         "mcp_server": REMOTE_MCP_URL,
         "status": "connected" if tools else "offline_or_empty",
         "discovered_tools_count": len(tools),
-        "tools": tools
+        "tools": [t["function"]["name"] for t in tools]
     }, indent=2)
-
-
-# ==============================================================================
-# REST ADAPTER HELPERS (SCADA TELEMETRY & PLANT STATUS)
-# ==============================================================================
-
-def fetch_rest_mcp(endpoint: str, params: Optional[Dict[str, str]] = None) -> Optional[Dict[str, Any]]:
-    """Makes a lightweight HTTP GET request to the MCP server's REST adapter."""
-    try:
-        base_url = REMOTE_MCP_URL.rstrip("/")
-        query_str = f"?{urllib.parse.urlencode(params)}" if params else ""
-        req = urllib.request.Request(f"{base_url}{endpoint}{query_str}", headers={"User-Agent": "KRIYA-Agent"})
-        with urllib.request.urlopen(req, timeout=4) as resp:
-            if resp.status == 200:
-                return json.loads(resp.read().decode("utf-8"))
-    except Exception:
-        return None
-    return None
-
-
-def get_live_mcp_telemetry(unit_tag: str, **kwargs) -> str:
-    """Queries live telemetry and active integrity alarms from the MCP server REST endpoint."""
-    data = fetch_rest_mcp("/api/telemetry", {"unit": unit_tag})
-    if data and "telemetry" in data:
-        return json.dumps({
-            "source": f"Sovereign FastMCP Server ({REMOTE_MCP_URL})",
-            "telemetry": data["telemetry"]
-        }, indent=2)
-    return f"[Notice]: FastMCP telemetry appliance at {REMOTE_MCP_URL} is unreachable."
-
-
-def get_all_mcp_units_status(**kwargs) -> str:
-    """Queries plant-wide health scores and active alarms from the FastMCP server REST endpoint."""
-    data = fetch_rest_mcp("/api/units")
-    if data and "units" in data:
-        return json.dumps({
-            "source": f"Sovereign FastMCP Server ({REMOTE_MCP_URL})",
-            "data": data
-        }, indent=2)
-    return f"[Notice]: FastMCP appliance at {REMOTE_MCP_URL} is unreachable."

@@ -205,6 +205,182 @@
   padding: 8px 10px 8px 18px;
 }
 
+/* Drag-and-drop active state and Dropzone Overlay */
+.chat-input-wrapper.drag-active {
+  position: relative;
+}
+
+.chat-input-wrapper.drag-active .chat-prompt-card {
+  outline: 2.5px dashed #0284c7;
+  outline-offset: 4px;
+  background-color: #dbeafe !important;
+}
+
+.chat-dropzone-overlay {
+  position: absolute;
+  top: -12px;
+  left: 24px;
+  right: 24px;
+  bottom: 8px;
+  background: rgba(240, 249, 255, 0.96);
+  border: 2px dashed #0284c7;
+  border-radius: var(--radius-xl);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: #0369a1;
+  font-size: 13.5px;
+  font-weight: 600;
+  z-index: 50;
+  pointer-events: none;
+  box-shadow: 0 8px 30px rgba(2, 132, 199, 0.15);
+}
+
+.bounce-icon {
+  animation: bounce 1s infinite alternate ease-in-out;
+}
+
+@keyframes bounce {
+  from { transform: translateY(-3px); }
+  to { transform: translateY(3px); }
+}
+
+/* "+" Attach File Button inside Card */
+.card-attach-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-full);
+  background-color: rgba(255, 255, 255, 0.7);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  color: #1e293b;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all var(--transition-fast);
+  padding: 0;
+  margin-right: -4px;
+}
+
+.card-attach-btn:hover:not(:disabled) {
+  background-color: #ffffff;
+  color: #0284c7;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transform: scale(1.08);
+}
+
+.card-attach-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Attachment Chips Tray above prompt card */
+.chat-attachments-tray {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  margin-bottom: 8px;
+  padding: 0 4px;
+}
+
+.chat-attachment-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 10px;
+  border-radius: 8px;
+  background-color: #ffffff;
+  border: 1px solid #cbd5e1;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+  font-size: 12px;
+  color: #1e293b;
+  max-width: 320px;
+  transition: all 0.15s ease;
+}
+
+.chat-attachment-chip.status-uploading {
+  border-color: #94a3b8;
+  background-color: #f8fafc;
+}
+
+.chat-attachment-chip.status-ready {
+  border-color: #bae6fd;
+  background-color: #f0f9ff;
+}
+
+.chat-attachment-chip.status-error {
+  border-color: #fca5a5;
+  background-color: #fef2f2;
+}
+
+.attachment-chip-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.attachment-chip-details {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.attachment-chip-name {
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 11.5px;
+  color: #0f172a;
+}
+
+.attachment-chip-size {
+  font-size: 10px;
+  color: #64748b;
+}
+
+.ocr-ready-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 10px;
+  font-weight: 600;
+  color: #0284c7;
+  background: rgba(2, 132, 199, 0.1);
+  padding: 1px 5px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+.attachment-error-pill {
+  display: inline-flex;
+  align-items: center;
+}
+
+.attachment-chip-remove-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: #94a3b8;
+  padding: 2px;
+  display: flex;
+  align-items: center;
+  border-radius: 4px;
+  transition: color 0.15s ease, background 0.15s ease;
+  margin-left: 2px;
+}
+
+.attachment-chip-remove-btn:hover {
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.08);
+}
+
 .chat-textarea {
   flex: 1;
   width: 100%;
@@ -1503,24 +1679,59 @@
   margin-top: 1px;
 }
 
+.deliverable-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
 .deliverable-download-action-btn {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 6px 11px;
+  gap: 5px;
+  padding: 6px 10px;
   border-radius: 6px;
   background: #0f172a;
   color: #ffffff;
   border: none;
-  font-size: 11.5px;
+  font-size: 11px;
   font-weight: 600;
   cursor: pointer;
   flex-shrink: 0;
-  transition: background 0.15s ease;
+  transition: all 0.15s ease;
 }
 
 .deliverable-download-action-btn:hover {
   background: #1e293b;
+}
+
+.deliverable-share-host-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 9px;
+  border-radius: 6px;
+  background: #f1f5f9;
+  color: #0e7490;
+  border: 1px solid #cbd5e1;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all 0.15s ease;
+}
+
+.deliverable-share-host-btn:hover {
+  background: #e2e8f0;
+  border-color: #94a3b8;
+  color: #0891b2;
+}
+
+.deliverable-share-host-btn.shared-success {
+  background: #ecfdf5;
+  border-color: #a7f3d0;
+  color: #059669;
 }
 
 .view-all-deliverables-btn {

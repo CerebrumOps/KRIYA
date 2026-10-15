@@ -1,11 +1,11 @@
 from openai import OpenAI
 
 
-prompt = "Hi i am Vicky, who are you ? Can you also tell you capabilities"
+prompt = "Hi there!!"
 
 
 client = OpenAI(
-    base_url="http://100.127.46.50:8000/v1",
+    base_url="http://100.98.154.51:8000/v1",
     api_key="sih2026"
 )
 

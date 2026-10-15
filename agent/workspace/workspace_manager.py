@@ -85,12 +85,10 @@ def set_active_workspace(
     _current_workspace_var.set(ws_dir)
     _last_active_workspace_dir = ws_dir
 
-    if employee_id:
-        _current_employee_var.set(employee_id)
-        _last_active_employee = employee_id
-    if chat_id:
-        _current_chat_var.set(chat_id)
-        _last_active_chat = chat_id
+    _current_employee_var.set(employee_id)
+    _last_active_employee = employee_id
+    _current_chat_var.set(chat_id)
+    _last_active_chat = chat_id
     return ws_dir
 
 

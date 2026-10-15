@@ -1,7 +1,7 @@
 ---
 name: docx-generation
-description: Comprehensive skill for authoring official corporate Word (.docx) technical approval notes, specifications, and engineering dossiers using python-docx with enterprise styling.
-version: 1.0.0
+description: Comprehensive skill for authoring official corporate Word (.docx) technical approval notes, specifications, and engineering dossiers with Document Control Metadata, multi-table findings, and formal Multi-Tier Signature & Stamp columns.
+version: 2.0.0
 triggers:
   - docx
   - word document
@@ -11,96 +11,42 @@ triggers:
   - engineering dossier
   - written report
 tools:
+  - generate_word_document
   - execute_terminal_command
 ---
 
 # Professional Word (.docx) Document Generation Skill
 
 ## Purpose
-Enables KRIYA to author beautifully formatted, corporate-grade Microsoft Word (`.docx`) documents for official refinery engineering sign-offs, technical approval notes, and inspection dossiers.
+Enables KRIYA to author richly detailed, corporate-grade Microsoft Word (`.docx`) documents for official CRPL / MRPL refinery engineering sign-offs, technical approval notes, and inspection dossiers.
 
-## Environment & Tooling
-- **Runtime**: Python 3 with `python-docx` (pre-installed).
-- **Execution**: Write a Python script in the active workspace and execute it using `execute_terminal_command` (e.g. `python3 make_doc.py`).
-- **Target Output Directory**: Save directly to `./` (the active chat workspace) or `./documents/`.
+## Primary Execution Method (Fastest & Most Reliable)
+Call the built-in **`generate_word_document`** tool directly! It automatically creates:
+1. Corporate Page Headers & Confidentiality Footers
+2. 4-Column Document Control Metadata Grid (Document Ref, Date/Revision, Asset Tag, Department, Standards, Classification)
+3. Rich Markdown Sections (`## Headings`, bullet lists, bold callouts, and Markdown tables)
+4. Styled Corporate Navy Tables (`#1E3A8A` headers, `#F8FAFC` zebra striping, cell margins)
+5. **Formal Multi-Tier Authorization, Concurrence & Signature Block Table** (`include_signature_block=True`) with explicit columns:
+   `Authority Tier / Action` | `Officer Name & Designation` | `Department` | `DOA / Approval Scope` | **`Signature & Official Stamp`** | `Date`
 
-## Document Design Standards
+### Required Document Structure for Detailed Engineering Dossiers
+When calling `generate_word_document(filename, title, asset_tag, document_id, content, tables, include_signature_block=True, signatories=...)`, always structure `content` and `tables` with these comprehensive sections:
+1. **1. Executive Summary & Operational Urgency**: High-level summary of equipment condition, remaining life vs. turnaround window, and expenditure request.
+2. **2. Equipment Design & Operating Specifications**: Table of design pressure, temperature, metallurgy, nominal thickness ($t_{nom}$), minimum required thickness ($t_{min}$), and service fluid.
+3. **3. Ultrasonic Thickness (CML) & Corrosion Rate Analysis (API 510 / 570)**:
+   - Table comparing previous inspection thickness, current thickness, metal loss ($\Delta t$), true corrosion rate ($CR = \Delta t / \text{years}$), and true remaining life ($RL = (t_{curr} - t_{min}) / CR$).
+   - Flag any discrepancy if historical contractor reports understated the corrosion rate.
+4. **4. Financial Estimate, Rate Contract & Budget Verification**:
+   - Itemized cost breakdown or approved vendor rate contract reference (e.g., `RC-2026-EXCH-04`), cost center budget check (e.g., `CC-10-CDU`), and net remaining balance.
+5. **5. Risk Assessment, HSE & SOP Compliance Matrix**:
+   - Citations to governing standards (`API 510`, `API 570`, `ASME Sec. VIII`) and PTW/MOC requirements.
+6. **6. Formal Multi-Tier DOA Authorization & Signature Matrix**:
+   - Ensure `include_signature_block=True` and pass `signatories` mapped to the Corporate Delegation of Authority (DOA) tiers:
+     - **Prepared & Inspected By (Level 2):** Plant / Inspection Engineer (e.g. `Arun V. Rao, EMP-1008`)
+     - **Reviewed & Recommended By (Level 3):** AGM Mechanical Maintenance (e.g. `Rajesh K. Sharma, EMP-1005` — DOA up to ₹5,00,000)
+     - **Financial Concurrence (Level 4):** GM Finance & Accounts (e.g. `Sunita Deshpande, EMP-1003`)
+     - **Final Approving Authority (Level 4):** General Manager O&M (e.g. `K. V. Ramanathan, EMP-1002` — DOA up to ₹25,00,000) or Director (`Dr. Arvind Swaminathan, EMP-1001`).
 
-### 1. Document Typography & Palette
-- **Document Title**: 24pt Bold, Dark Navy (`#1E3A8A` or RGB `30, 58, 138`).
-- **Heading 1**: 16pt Bold, Navy (`#1E3A8A`), with a bottom border or underline.
-- **Heading 2**: 13pt Semi-Bold, Slate (`#334155` or RGB `51, 65, 85`).
-- **Body Text**: 10.5pt Calibri or Arial, Off-Black (`#1F2937`), 1.15 line spacing, 6pt after.
-- **Header & Footer**: Subdued grey, includes Document ID, Date, Confidentiality notice, and Page Number.
-
-### 2. Standard Approval Note Structure
-1. **Header Block / Metadata Table**:
-   - Project / Asset: (e.g. `CDU-II / 01-C-101 Overhead Vapor Line`)
-   - Document Ref: (e.g. `MRPL/ENG/2026/AN-402`)
-   - Date & Revision: (e.g. `2026-09-28 | Rev 1.0`)
-   - Target Signatories: Lead Process Engineer, Head of Asset Integrity, Refinery Director.
-2. **Executive Summary**: Clear 1-2 paragraph description of the finding, urgency, and recommended action.
-3. **Technical Findings & NDT Data**: Formatted table displaying inspection results, measured thickness, minimum allowable thickness, corrosion rates, and category defect levels.
-4. **SOP Compliance Matrix**: Exact citations to MRPL standard operating procedures (e.g. `SOP-MRPL-4.2.3`).
-5. **Cost & Schedule Impact Summary**: Brief summary with cross-reference to accompanying Excel workbooks.
-6. **Formal Sign-off Block**: Sign-off signature boxes for approval.
-
-### 3. Implementation Python Script Blueprint
-
-```python
-import docx
-from docx.shared import Inches, Pt, RGBColor
-from docx.enum.text import WD_ALIGN_PARAGRAPH
-from docx.enum.table import WD_TABLE_ALIGNMENT
-from docx.oxml import OxmlElement, parse_xml
-from docx.oxml.ns import nsdecls, qn
-
-doc = docx.Document()
-
-# Set standard 1-inch margins
-for section in doc.sections:
-    section.top_margin = Inches(1)
-    section.bottom_margin = Inches(1)
-    section.left_margin = Inches(1)
-    section.right_margin = Inches(1)
-
-# Title
-title_p = doc.add_paragraph()
-title_run = title_p.add_run("TECHNICAL APPROVAL NOTE")
-title_run.font.size = Pt(22)
-title_run.font.bold = True
-title_run.font.color.rgb = RGBColor(30, 58, 138)
-
-# Table Styling Helper
-def style_table(table, col_widths, headers, data):
-    table.alignment = WD_TABLE_ALIGNMENT.CENTER
-    # Header Row
-    hdr_cells = table.rows[0].cells
-    for i, title in enumerate(headers):
-        hdr_cells[i].text = title
-        p = hdr_cells[i].paragraphs[0]
-        p.runs[0].font.bold = True
-        p.runs[0].font.color.rgb = RGBColor(255, 255, 255)
-        # Background color
-        shading = parse_xml(r'<w:shd {} w:fill="1E3A8A"/>'.format(nsdecls('w')))
-        hdr_cells[i]._tc.get_or_add_tcPr().append(shading)
-    
-    # Data Rows
-    for r_idx, row_data in enumerate(data):
-        row_cells = table.add_row().cells
-        bg_color = "F8FAFC" if r_idx % 2 == 1 else "FFFFFF"
-        for c_idx, val in enumerate(row_data):
-            row_cells[c_idx].text = str(val)
-            shading = parse_xml(f'<w:shd {nsdecls("w")} w:fill="{bg_color}"/>')
-            row_cells[c_idx]._tc.get_or_add_tcPr().append(shading)
-
-# Save output
-doc.save("Approval_Note.docx")
-print("Saved Approval_Note.docx successfully.")
-```
-
-## Workflow Execution
-1. Identify all required data (equipment tags, readings, recommendations).
-2. Author the Python generation script in the workspace (using `execute_terminal_command`).
-3. Run `python3 generate_docs.py`.
-4. Verify file existence and size using `execute_terminal_command(command="ls -lh *.docx")`.
+## Fallback Custom Python Script Blueprint (If Custom Scripting via `execute_terminal_command`)
+If writing a custom script using `python-docx`, always include both the Document Control Metadata table at the top and the 6-column **Authorization & Signature Block** (`Authority Tier`, `Officer Name & Designation`, `Department`, `DOA Scope`, `Signature & Official Stamp`, `Date`) at the bottom, and conclude your response with:
+`[Deliverable Created]: <Document Title> saved to '<filename>.docx'`

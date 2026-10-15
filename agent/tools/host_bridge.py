@@ -12,6 +12,7 @@
 
 import os
 from pathlib import Path
+import shutil
 import subprocess
 from typing import Optional
 
@@ -81,9 +82,84 @@ def write_host_file(file_path: str, content: str) -> str:
     try:
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(content, encoding="utf-8")
+        try:
+            os.chmod(str(target), 0o666)
+        except Exception:
+            pass
         return f"[Host Bridge Success]: Written {len(content)} bytes to host shared file '{file_path}'."
     except Exception as e:
         return f"[Host Bridge Error writing file]: {str(e)}"
+
+
+# 2b. Share / Export Deliverable File to Host Machine
+def share_file_to_host(filename: str, host_path: Optional[str] = None) -> str:
+    """
+    Transfers/copies any deliverable file from the agent workspace directly to
+    the host operating system's shared folder (~/kriya-shared).
+    Works with all file types (DOCX, XLSX, PPTX, PDF, CSV, Python scripts, JSON, images).
+    """
+    if not filename or not filename.strip():
+        return "[Host Bridge Error]: Deliverable filename cannot be empty."
+
+    clean_name = Path(filename.strip()).name
+
+    # Import workspace manager to search active workspace locations
+    try:
+        from agent.workspace.workspace_manager import get_active_workspace_dir, BASE_WORKSPACE_DIR
+        active_ws = get_active_workspace_dir()
+    except Exception:
+        active_ws = Path("/app/workspace")
+        BASE_WORKSPACE_DIR = Path("/app/workspace")
+
+    candidates = [
+        Path(filename.strip()),
+        active_ws / clean_name,
+        active_ws / "documents" / clean_name,
+        active_ws / "sandbox" / clean_name,
+        active_ws / "media" / clean_name,
+        BASE_WORKSPACE_DIR / clean_name,
+        BASE_WORKSPACE_DIR / "documents" / clean_name,
+        Path("/app/workspace") / clean_name,
+        Path.cwd() / clean_name,
+    ]
+
+    # Search active workspace recursively if needed
+    if active_ws.exists():
+        for found in active_ws.glob(f"**/{clean_name}"):
+            if found.is_file():
+                candidates.insert(0, found)
+                break
+
+    source_file = None
+    for c in candidates:
+        if c.is_file():
+            source_file = c
+            break
+
+    if source_file is None:
+        return f"[Host Bridge Error]: Deliverable file '{clean_name}' was not found in active workspace to share."
+
+    target_rel = host_path.strip() if host_path and host_path.strip() else clean_name
+    dest_path = _resolve_safe_path(target_rel)
+    if dest_path is None:
+        return "[Host Bridge Error]: Access denied. Path traversal outside host shared directory is prohibited."
+
+    try:
+        dest_path.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(str(source_file), str(dest_path))
+        try:
+            os.chmod(str(dest_path), 0o666)
+        except Exception:
+            pass
+
+        size_bytes = dest_path.stat().st_size
+        return (
+            f"[Host Shared Success]: File '{clean_name}' ({size_bytes} bytes) successfully copied to "
+            f"host machine shared folder at '~/kriya-shared/{dest_path.name}'. "
+            f"The user can now directly access, open, and edit this file on their computer."
+        )
+    except Exception as e:
+        return f"[Host Bridge Error sharing file to host]: {str(e)}"
 
 
 # 3. List Host Files
@@ -235,3 +311,30 @@ EXECUTE_HOST_COMMAND_SCHEMA = {
         }
     }
 }
+
+SHARE_FILE_TO_HOST_SCHEMA = {
+    "type": "function",
+    "function": {
+        "name": "share_file_to_host",
+        "description": (
+            "Share, export, or send a generated deliverable file (DOCX, XLSX, PPTX, PDF, CSV, script, data, or image) "
+            "from the agent's container workspace directly to the user's host machine shared folder (~/kriya-shared). "
+            "Call this whenever the user requests to share, copy, or send files to their local machine or computer."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "filename": {
+                    "type": "string",
+                    "description": "Name of the deliverable file in the workspace (e.g. '10-E-101_Corrosion_Report.docx', 'anomalies.csv')"
+                },
+                "host_path": {
+                    "type": "string",
+                    "description": "Optional custom filename or subfolder path within ~/kriya-shared"
+                }
+            },
+            "required": ["filename"]
+        }
+    }
+}
+

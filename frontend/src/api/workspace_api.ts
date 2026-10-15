@@ -87,3 +87,97 @@ export async function downloadDeliverable(
   document.body.removeChild(a);
   window.URL.revokeObjectURL(downloadUrl);
 }
+
+/**
+ * Transfers a deliverable directly into the host machine's shared directory (~/kriya-shared).
+ */
+export async function shareDeliverableToHost(
+  chatId: string,
+  filename: string,
+  backendUrl: string = BACKEND_URL
+): Promise<{ success: boolean; message: string; host_path?: string }> {
+  const base = (backendUrl || BACKEND_URL).replace(/\/+$/, '');
+  const url = `${base}/api/workspace/share-to-host`;
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...getAuthHeaders(),
+      },
+      body: JSON.stringify({ chat_id: chatId, filename }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || `Failed to export to host: ${res.status}`);
+    }
+    const data = await res.json();
+    return {
+      success: true,
+      message: data.message || `Exported to ~/kriya-shared/${filename}`,
+      host_path: data.host_path,
+    };
+  } catch (err: any) {
+    return {
+      success: false,
+      message: err.message || String(err),
+    };
+  }
+}
+
+export interface UploadedFileItem {
+  status: string;
+  filename: string;
+  path: string;
+  size_bytes: number;
+  content_type?: string;
+  chat_id: string;
+}
+
+/**
+ * Uploads an image, photo, or PDF document into the chat workspace for tool-based OCR analysis.
+ */
+export async function uploadFileToWorkspace(
+  file: File,
+  chatId?: string | null,
+  backendUrl: string = BACKEND_URL
+): Promise<UploadedFileItem> {
+  const base = (backendUrl || BACKEND_URL).replace(/\/+$/, '');
+  const url = `${base}/api/workspace/upload`;
+  const formData = new FormData();
+  formData.append('file', file);
+  if (chatId) {
+    formData.append('chat_id', chatId);
+  }
+
+  // IMPORTANT: Do NOT set 'Content-Type': 'application/json' for FormData!
+  // The browser must automatically set 'Content-Type: multipart/form-data; boundary=...'
+  const token = getStoredAuthToken();
+  const headers: Record<string, string> = {};
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  const res = await fetch(url, {
+    method: 'POST',
+    headers,
+    body: formData,
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    const detailMsg =
+      typeof err.detail === 'string'
+        ? err.detail
+        : Array.isArray(err.detail)
+        ? err.detail.map((d: any) => d.msg || JSON.stringify(d)).join('; ')
+        : err.detail
+        ? JSON.stringify(err.detail)
+        : `Upload failed with status ${res.status}`;
+    throw new Error(detailMsg);
+  }
+
+  return await res.json();
+}
+
+

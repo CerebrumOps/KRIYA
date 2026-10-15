@@ -26,6 +26,17 @@ def execute_terminal_command(command: str, cwd: Optional[str] = None) -> str:
     if not command or not command.strip():
         return "[Error]: Command cannot be empty."
 
+    # Zero-Trust RBAC guard: prevent shell scripts/curl from bypassing MCP session RBAC
+    cmd_lower = command.lower()
+    forbidden_patterns = ["handshake_authenticate", ":8085", "company_db", "kriya_admin"]
+    for pat in forbidden_patterns:
+        if pat in cmd_lower:
+            return (
+                "[SECURITY BLOCK - RBAC_BYPASS_PROHIBITED]: Direct shell access to the FastMCP "
+                "Gateway or PostgreSQL company_db is strictly forbidden. You must use the official "
+                "MCP tools bound to the authenticated employee's session."
+            )
+
     # Resolve working directory if specified, defaulting to active chat workspace
     work_dir = None
     if cwd and cwd.strip():

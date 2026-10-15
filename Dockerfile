@@ -1,5 +1,5 @@
 # ==============================================================================
-# KRIYA Sovereign AI Client Appliance — Dockerfile (Ubuntu 24.04)
+# KRIYA Sovereign AI Client Appliance — Dockerfile (Ubuntu 24.04 Server)
 # ==============================================================================
 FROM ubuntu:24.04
 
@@ -10,7 +10,10 @@ ENV KRIYA_CONTAINER=1
 
 WORKDIR /app
 
-# 1. Install Ubuntu system packages, Python 3, network tools, and build essentials
+# Ensure root access inside container environment
+USER root
+
+# 1. Install Ubuntu system packages, Python 3, network tools, build essentials, and sudo
 RUN apt-get update && apt-get install -y --no-install-recommends \
     python3 \
     python3-pip \
@@ -18,6 +21,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     wget \
     git \
+    sudo \
     procps \
     net-tools \
     iptables \
@@ -25,6 +29,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     ca-certificates \
     gnupg \
+    tesseract-ocr \
+    poppler-utils \
+    && echo "root ALL=(ALL:ALL) NOPASSWD: ALL" >> /etc/sudoers \
     && rm -rf /var/lib/apt/lists/*
 
 # 2. Install Node.js LTS (v22.x)
@@ -62,4 +69,5 @@ RUN mkdir -p /app/data /app/workspace/chats /host-bridge /host_shared
 
 EXPOSE 3000 5001
 
+USER root
 ENTRYPOINT ["/app/entrypoint.sh"]
